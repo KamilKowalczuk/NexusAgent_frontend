@@ -67,6 +67,10 @@
         min="10"
         max="100"
         value={emailsPerDay}
+        aria-label="Ilość maili dziennie"
+        aria-valuemin={10}
+        aria-valuemax={100}
+        aria-valuenow={emailsPerDay}
         oninput={handleSliderInput}
       />
       <!-- Custom track background -->

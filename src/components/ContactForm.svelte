@@ -237,6 +237,7 @@
             type="button"
             role="checkbox"
             aria-checked={formData.privacyConsent}
+            aria-label="Akceptuję Politykę Prywatności"
             onclick={() => formData.privacyConsent = !formData.privacyConsent}
             disabled={status === 'loading'}
             class="relative mt-0.5 shrink-0 cursor-pointer focus:outline-none"
