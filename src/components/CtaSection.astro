@@ -39,20 +39,20 @@ const buttonUrl = data?.buttonUrl || '#pricing';
 const systemStatus = data?.systemStatus || `System status: Active | Sloty: ${usedSlots}/${totalSlots} | Slot verification: Online`;
 ---
 
-<section class="max-w-7xl mx-auto px-8 py-32 w-full fade-up">
-  <div class="glass p-20 rounded-[40px] border-primary/20 text-center relative overflow-hidden group">
+<section class="max-w-7xl mx-auto px-4 sm:px-8 py-16 md:py-32 w-full fade-up">
+  <div class="glass p-8 sm:p-12 md:p-20 rounded-[24px] md:rounded-[40px] border-primary/20 text-center relative overflow-hidden group">
     <div class="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-all duration-700"></div>
     <!-- Floating ambient orb -->
-    <div class="absolute bottom-0 right-[10%] w-[300px] h-[300px] bg-accent/10 blur-[120px] rounded-full pointer-events-none float-slow-reverse"></div>
+    <div class="absolute bottom-0 right-[10%] w-[200px] h-[200px] md:w-[300px] md:h-[300px] bg-accent/10 blur-[120px] rounded-full pointer-events-none float-slow-reverse"></div>
 
     <div class="relative z-10 max-w-2xl mx-auto">
-      <h2 class="font-display text-5xl md:text-7xl font-bold uppercase tracking-tight mb-8 glitch" data-text={headline}>{headline}</h2>
-      <p class="text-xl text-slate-400 mb-12" set:html={subtitle}>
+      <h2 class="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold uppercase tracking-tight mb-5 md:mb-8 glitch" data-text={headline}>{headline}</h2>
+      <p class="text-base sm:text-lg md:text-xl text-slate-400 mb-8 md:mb-12 leading-relaxed" set:html={subtitle}>
       </p>
-      <a href={buttonUrl} class="inline-block bg-primary text-bg-dark font-display font-bold text-lg uppercase px-16 py-8 rounded-full hover:scale-105 transition-all duration-300 neon-shadow-cyan">
+      <a href={buttonUrl} class="inline-flex items-center justify-center w-full sm:w-auto bg-primary text-bg-dark font-display font-bold text-base md:text-lg uppercase px-8 sm:px-12 md:px-16 py-5 md:py-8 rounded-full hover:scale-105 transition-all duration-300 neon-shadow-cyan">
         {buttonText}
       </a>
-      <div class="mt-8 font-mono text-[11px] text-slate-600 uppercase tracking-widest auto-glitch">
+      <div class="mt-6 md:mt-8 font-mono text-[9px] sm:text-[11px] text-slate-600 uppercase tracking-widest auto-glitch px-2 break-words">
         {systemStatus}
       </div>
     </div>
