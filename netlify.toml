@@ -2,46 +2,8 @@
   command = "npm run build"
   publish = "dist"
 
-# Środowisko produkcyjne — branch main
-[context.production]
-  command = "npm run build"
-
-# Środowisko branch deploy (np. PR preview)
-[context.branch-deploy]
-  command = "npm run build"
-
-# Edge Function — security headers na wszystkich stronach HTML
 [[edge_functions]]
   function = "security-headers"
   path = "/*"
-  # Pomijamy pliki statyczne — Edge Function odpala się tylko dla stron HTML i API
-  excludedPattern = "(_astro/*|*.js|*.css|*.woff2|*.avif|*.webp|*.png|*.jpg|*.jpeg|*.svg|*.ico|*.gif|*.mp4|*.webm)"
-
-# Nagłówki cache dla statycznych assetów
-[[headers]]
-  for = "/_astro/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/fonts/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.svg"
-  [headers.values]
-    Cache-Control = "public, max-age=86400"
-
-# Przekierowania dla Stripe webhooks — Netlify nie powinien buforować
-[[headers]]
-  for = "/api/stripe/*"
-  [headers.values]
-    Cache-Control = "no-store, no-cache"
-    X-Robots-Tag = "noindex"
-
-# Blokujemy indeksowanie wewnętrznych endpointów API
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
+  # Omijamy pliki statyczne, żeby Edge Function nie odpalało się niepotrzebnie dla obrazków i nie pożerało limitów
+  excludedPattern = "(/api/.*|/_astro/.*|\\.js$|\\.css$|\\.woff2$|\\.avif$|\\.webp$|\\.png$|\\.jpg$|\\.svg$)"
