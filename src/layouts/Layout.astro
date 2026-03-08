@@ -42,10 +42,35 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
     <meta property="twitter:description" content={siteDescription} />
     {siteImage && <meta property="twitter:image" content={siteImage} />}
 
+    <!--
+      FONTY: Ładujemy asynchronicznie (nie blokują renderowania)
+      Trick: media="print" onload zmienia na "all" dopiero po załadowaniu
+      noscript fallback dla przeglądarek bez JS
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Space Grotesk + Inter + JetBrains Mono — async, nie blokuje FCP -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
+      media="print"
+      onload="this.media='all'"
+    >
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+    </noscript>
+
+    <!-- Material Symbols: ładowane PO załadowaniu strony — plik 1MB nie blokuje FCP -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=block"
+      media="print"
+      onload="this.media='all'"
+    >
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=block">
+    </noscript>
 
     <title>{siteTitle}</title>
 
@@ -104,7 +129,9 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
     <div class="fixed inset-0 glow-radial pointer-events-none z-0"></div>
     <!-- Main content wrapper -->
     <div class="relative z-10 flex flex-col min-h-screen">
-      <slot />
+      <main>
+        <slot />
+      </main>
     </div>
 
     <!-- Cookie Consent Banner -->
