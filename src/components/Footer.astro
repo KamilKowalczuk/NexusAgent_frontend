@@ -1,0 +1,78 @@
+---
+interface Props {
+  data?: {
+    copyright?: string;
+    status?: string;
+    navLinks?: { label: string; url: string }[];
+  };
+}
+
+const { data } = Astro.props;
+
+const copyright =
+  data?.copyright || "© 2024 NEXUS AI SYSTEMS. Wszelkie prawa zastrzeżone.";
+const status =
+  data?.status || "MODEL TITAN V2.4 | STOS: GEMINI / FIRECRAWL / VERCEL AI";
+const navLinks =
+  data?.navLinks && data.navLinks.length > 0
+    ? data.navLinks
+    : [
+        { label: "Demo", url: "#demo" },
+        { label: "Proces", url: "#engine" },
+        { label: "Kalkulator", url: "#pricing" },
+        { label: "Zaufanie", url: "#security" },
+        { label: "Polityka Prywatności", url: "#" },
+      ];
+---
+
+<footer
+  class="mt-auto border-t border-white/5 bg-black/60 py-20 px-8 relative overflow-hidden"
+>
+  <div class="max-w-7xl mx-auto flex flex-col gap-16 relative z-10">
+    <!-- Top row: Logo + Nav -->
+    <div class="flex flex-col md:flex-row justify-between items-center gap-12">
+      <a href="/" class="group">
+        <img src="/logo2.svg" alt="Nexus Agent" class="h-14 auto-glitch" />
+      </a>
+
+      <div
+        class="flex flex-wrap justify-center gap-10 text-[10px] font-mono text-slate-500 uppercase tracking-widest"
+      >
+        {
+          navLinks.map((link) => (
+            <a
+              class="hover:text-primary transition-colors duration-300"
+              href={link.url}
+            >
+              {link.label}
+            </a>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div
+      class="w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"
+    >
+    </div>
+
+    <!-- Bottom row: Copyright + Status -->
+    <div
+      class="flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left"
+    >
+      <div class="text-[10px] font-mono text-slate-600 uppercase">
+        {copyright}
+      </div>
+      <div class="text-[10px] font-mono text-slate-600 uppercase auto-glitch">
+        {status}
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom ambient glow -->
+  <div
+    class="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[600px] h-40 bg-primary/5 blur-[120px] rounded-full"
+  >
+  </div>
+</footer>

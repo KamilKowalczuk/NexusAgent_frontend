@@ -1,0 +1,51 @@
+---
+interface Props {
+  data?: {
+    title?: string;
+    items?: { question: string; answer: string }[];
+  };
+}
+
+const { data } = Astro.props;
+
+const title = data?.title || 'Protocol FAQ';
+const items = data?.items && data.items.length > 0 ? data.items : [
+  {
+    question: 'Czy to jest zgodne z RODO?',
+    answer: 'Tak. TITAN operuje wyłącznie na publicznie dostępnych danych firmowych i kontaktach B2B, realizując scenariusz "prawnie uzasadnionego interesu" (art. 6 RODO). Implementujemy mechanizm wypisania z bazy bezwzględnie kończący komunikację.'
+  },
+  {
+    question: 'Jak wygląda proces wdrożenia?',
+    answer: 'Po opłaceniu abonamentu przez Stripe, przechodzimy przez konsultację onboardingową (człowiek, nie AI). Definiujemy grupę docelową, ofertę, ton komunikacji. TITAN rusza pełną mocą w ciągu 14 dni od startu.'
+  },
+  {
+    question: 'Czy mogę używać własnych domen?',
+    answer: 'Nie rekomendujemy. TITAN korzysta z własnego klastra infrastrukturalnych domen wysyłkowych, które przechodzą pełną procedurę warm-up. Twoja główna domena biznesowa pozostaje absolutnie nietknięta i bezpieczna.'
+  }
+];
+---
+
+<section class="max-w-4xl mx-auto px-8 py-32 w-full fade-up">
+  <h2 class="font-display text-4xl font-bold uppercase tracking-tighter mb-16 text-center">{title}</h2>
+  <div class="space-y-4">
+    {items.map((item) => (
+      <details class="glass rounded-2xl border-white/5 group hover:border-primary/30 transition-all duration-500 cursor-pointer overflow-hidden">
+        <summary class="p-6 flex justify-between items-center list-none">
+          <h4 class="font-display font-bold text-lg">{item.question}</h4>
+          <span class="material-symbols-outlined text-slate-500 group-open:text-primary group-open:rotate-180 transition-all duration-300">expand_more</span>
+        </summary>
+        <div class="px-6 pb-6 text-slate-500 text-sm animate-[fadeIn_0.3s_ease-out]">
+          {item.answer}
+        </div>
+      </details>
+    ))}
+  </div>
+</section>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  details summary::-webkit-details-marker { display: none; }
+</style>

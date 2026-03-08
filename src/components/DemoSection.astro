@@ -1,0 +1,27 @@
+---
+import TerminalDemo from './TerminalDemo.svelte';
+
+interface Props {
+  data?: {
+    badge?: string;
+    headline?: string;
+    inputLabelUrl?: string;
+    inputLabelIndustry?: string;
+  };
+}
+
+const { data } = Astro.props;
+
+const badge = data?.badge || 'LIVE TERMINAL_SIMULATION';
+const headline = data?.headline || 'System Analysis Protocol';
+const inputLabelUrl = data?.inputLabelUrl || 'URL firmy do ataku';
+const inputLabelIndustry = data?.inputLabelIndustry || 'Branża docelowa';
+---
+
+<TerminalDemo 
+  client:load 
+  badge={badge} 
+  headline={headline} 
+  inputLabelUrl={inputLabelUrl} 
+  inputLabelIndustry={inputLabelIndustry} 
+/>

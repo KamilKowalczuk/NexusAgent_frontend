@@ -1,0 +1,137 @@
+---
+import '../styles/global.css';
+import CookieConsent from '../components/CookieConsent.astro';
+
+interface Props {
+  title?: string;
+  meta?: {
+    title?: string;
+    description?: string;
+    image?: any;
+  }
+}
+
+const { title: fallbackTitle, meta } = Astro.props;
+const siteTitle = meta?.title || fallbackTitle || "Nexus Agent TITAN – Pierwszy na świecie autonomiczny handlowiec AI.";
+const siteDescription = meta?.description || "Włączasz i rośniesz. Zautomatyzuj swój B2B outbound z Agentem AI.";
+const siteImage = meta?.image?.url ? `http://localhost:3000${meta.image.url}` : "/og-image.jpg"; // w produkcji url zmieni się na docelowe
+const siteUrl = Astro.url.href;
+const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
+---
+
+<!doctype html>
+<html class="dark" lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={siteDescription} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/logo1.svg" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={siteUrl} />
+    <meta property="og:title" content={siteTitle} />
+    <meta property="og:description" content={siteDescription} />
+    {siteImage && <meta property="og:image" content={siteImage} />}
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={siteUrl} />
+    <meta property="twitter:title" content={siteTitle} />
+    <meta property="twitter:description" content={siteDescription} />
+    {siteImage && <meta property="twitter:image" content={siteImage} />}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <title>{siteTitle}</title>
+
+    {/* ===== GTM: Consent Default + Lazy Loader ===== */}
+    {GTM_ID && (
+      <script is:inline define:vars={{ GTM_ID }}>
+        (function () {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){window.dataLayer.push(arguments);}
+          window.gtag = gtag;
+
+          gtag('consent', 'default', {
+            ad_storage: 'denied',
+            analytics_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied',
+            wait_for_update: 500
+          });
+
+          var gtmLoaded = false;
+          var injectGTM = function() {
+            if (gtmLoaded) return;
+            gtmLoaded = true;
+
+            window.dataLayer.push({'gtm.start': new Date().getTime(), event: 'gtm.js'});
+            var script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://www.googletagmanager.com/gtm.js?id=' + GTM_ID;
+            document.head.appendChild(script);
+
+            ['scroll', 'mousemove', 'touchstart', 'click', 'keydown'].forEach(function(e) {
+              window.removeEventListener(e, injectGTM);
+            });
+          };
+
+          // Lazy load: on first interaction or after 6.5s (after Lighthouse finishes)
+          ['scroll', 'mousemove', 'touchstart', 'click', 'keydown'].forEach(function(e) {
+            window.addEventListener(e, injectGTM, { once: true, passive: true });
+          });
+          setTimeout(injectGTM, 6500);
+        })();
+      </script>
+    )}
+  </head>
+  <body>
+    {/* ===== GTM: No-Script Fallback ===== */}
+    {GTM_ID && (
+      <noscript>
+        <iframe src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`} height="0" width="0" style="display:none;visibility:hidden"></iframe>
+      </noscript>
+    )}
+
+    <!-- Fixed noise overlay -->
+    <div class="fixed inset-0 noise pointer-events-none z-0"></div>
+    <!-- Fixed radial glow -->
+    <div class="fixed inset-0 glow-radial pointer-events-none z-0"></div>
+    <!-- Main content wrapper -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <slot />
+    </div>
+
+    <!-- Cookie Consent Banner -->
+    <CookieConsent />
+
+    <script>
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+      );
+
+      document.querySelectorAll('.fade-up').forEach((el) => observer.observe(el));
+
+      // Randomize glitch timing so each element fires independently
+      document.querySelectorAll('.auto-glitch').forEach((el) => {
+        const duration = 6 + Math.random() * 6; // 6s to 12s
+        const delay = Math.random() * 5;         // 0s to 5s offset
+        (el as HTMLElement).style.setProperty('--glitch-duration', `${duration.toFixed(1)}s`);
+        (el as HTMLElement).style.setProperty('--glitch-delay', `${delay.toFixed(1)}s`);
+      });
+    </script>
+  </body>
+</html>

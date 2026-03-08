@@ -1,0 +1,119 @@
+---
+import ROICalculator from './ROICalculator.svelte';
+import PricingInteractive from './PricingInteractive.svelte';
+
+interface Props {
+  data?: {
+    comparisonBadge?: string;
+    comparisonTitle?: string;
+    plans?: {
+      title: string;
+      price: string;
+      monthlySuffix?: string;
+      badge?: string;
+      isFeatured?: boolean;
+      ctaText?: string;
+      features: { feature: string }[];
+    }[];
+  };
+  calculatorData?: any;
+}
+
+const { data, calculatorData } = Astro.props;
+
+// Fetch slot data server-side for initial render (avoids flash of wrong button)
+let initialSlots = { total: 10, used: 0 };
+try {
+  const PAYLOAD_URL = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
+  const slotsRes = await fetch(`${PAYLOAD_URL}/api/globals/landing-page?depth=0`, {
+    signal: AbortSignal.timeout(2500),
+  });
+  if (slotsRes.ok) {
+    const slotsData = await slotsRes.json();
+    initialSlots.total = slotsData?.slots?.totalSlots ?? 10;
+    initialSlots.used = slotsData?.slots?.usedSlots ?? 0;
+  }
+} catch (e) {
+  // Fallback to defaults — PricingInteractive re-checks on client
+}
+
+const comparisonBadge = data?.comparisonBadge || 'Porównanie Wydajności';
+const comparisonTitle = data?.comparisonTitle || 'Rzeczywisty Zwrot z Inwestycji (ROI)';
+
+const plans = data?.plans && data.plans.length > 0 ? data.plans : [
+  {
+    title: 'Wewnętrzny Handlowiec',
+    price: '10,000 PLN',
+    monthlySuffix: '/mc',
+    features: [{ feature: 'Ręczne wpisywanie danych' }, { feature: 'Koszty L4/Urlopów' }, { feature: 'Koszty sprzętu i narzędzi' }]
+  },
+  {
+    title: 'Pełna Automatyzacja',
+    badge: 'MODEL NEXUS',
+    price: '1,999 PLN',
+    monthlySuffix: '/mc',
+    isFeatured: true,
+    ctaText: 'Aktywuj NEXUS',
+    features: [{ feature: '1500+ Personalizacji /mc' }, { feature: '24/7 Autonomiczna Praca' }, { feature: 'Silnik Głębokiego Researchu' }, { feature: 'Bezpieczna Ekstrakcja do CRM' }]
+  },
+  {
+    title: 'Agencja Zewnętrzna',
+    price: '5,000 PLN',
+    monthlySuffix: '/mc',
+    features: [{ feature: 'Generyczne szablony PDF' }, { feature: 'Brak transparentności' }, { feature: 'Prowizje za Success Fee' }]
+  }
+];
+---
+
+<section class="max-w-7xl mx-auto px-8 py-32 w-full" id="pricing">
+  <div class="text-center mb-24 fade-up">
+    <h2 class="font-display text-5xl font-bold uppercase tracking-tighter mb-4">{comparisonTitle}</h2>
+    <p class="text-slate-500 font-mono text-sm tracking-widest uppercase">{comparisonBadge}</p>
+  </div>
+
+  <!-- 3-Column Pricing Comparison -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-20 items-stretch">
+    {plans.map((plan) => (
+      plan.isFeatured ? (
+        <!-- TITAN MODEL (Featured) — Interactive -->
+        <div class="glass p-8 md:p-10 rounded-3xl border-accent border-2 relative z-10 flex flex-col shadow-[0_0_60px_rgba(156,39,176,0.2)] bg-black/70 scale-105">
+          {plan.badge && (
+            <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-accent text-white text-[11px] font-bold px-6 py-2 rounded-full uppercase tracking-[0.3em]">{plan.badge}</div>
+          )}
+          <h3 class="font-display text-accent uppercase font-bold text-sm mb-3 tracking-widest">{plan.title}</h3>
+          <ul class="space-y-4 mb-8 flex-grow">
+            {plan.features.map(f => (
+              <li class="flex items-center gap-3 text-sm text-slate-100">
+                <span class="material-symbols-outlined text-accent text-xl">verified</span> {f.feature}
+              </li>
+            ))}
+          </ul>
+          <!-- Interactive pricing slider + CTA -->
+          <PricingInteractive
+            client:visible
+            initialTotal={initialSlots.total}
+            initialUsed={initialSlots.used}
+          />
+        </div>
+      ) : (
+        <!-- Standard Option -->
+        <div class="glass p-12 rounded-3xl border-white/5 flex flex-col opacity-60">
+          <h3 class="font-display text-slate-500 uppercase font-bold text-sm mb-4 tracking-widest">{plan.title}</h3>
+          <div class="text-4xl font-bold mb-10 text-white">{plan.price} <span class="text-xs font-normal text-slate-500">{plan.monthlySuffix}</span></div>
+          <ul class="space-y-5 mb-12 flex-grow">
+            {plan.features.map(f => (
+              <li class="flex items-center gap-3 text-sm text-slate-500">
+                <span class="material-symbols-outlined text-red-500/50 text-xl">cancel</span> {f.feature}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    ))}
+  </div>
+
+  <!-- ROI Calculator -->
+  <div class="glass p-12 rounded-3xl border-primary/10 max-w-4xl mx-auto bg-primary/5">
+    <ROICalculator client:visible data={calculatorData} />
+  </div>
+</section>
