@@ -50,7 +50,7 @@ const secondaryText = data?.secondaryText || "System Architecture";
   </div>
 
   <h1
-    class="font-display text-6xl md:text-9xl font-bold leading-[0.9] tracking-tight mb-8 fade-up"
+    class="font-display text-6xl md:text-9xl font-bold leading-[0.9] tracking-tight mb-8 hero-fade-up"
   >
     {headlineFirstLine}<br />
     <span class="text-primary italic hero-glitch" data-text={headlineGlitch}
@@ -59,13 +59,15 @@ const secondaryText = data?.secondaryText || "System Architecture";
   </h1>
 
   <p
-    class="text-xl md:text-2xl text-slate-400 max-w-3xl font-light mb-16 leading-relaxed fade-up"
+    class="text-xl md:text-2xl text-slate-400 max-w-3xl font-light mb-16 leading-relaxed hero-fade-up"
+    style="animation-delay: 0.1s;"
   >
     {subtitle}
   </p>
 
   <div
-    class="flex flex-col sm:flex-row gap-6 fade-up items-center justify-center"
+    class="flex flex-col sm:flex-row gap-6 hero-fade-up items-center justify-center"
+    style="animation-delay: 0.2s;"
   >
     <a
       href={ctaUrl}

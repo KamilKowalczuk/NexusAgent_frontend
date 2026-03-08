@@ -167,6 +167,16 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(0);
 }
 
+/* ─── Pure CSS fade-in for Hero (Above-the-fold) ─── */
+.hero-fade-up {
+  opacity: 0;
+  animation: hero-anim-up 1s ease-out forwards;
+}
+@keyframes hero-anim-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── Floating animation for ambient orbs ─── */
 @keyframes float {
   0%, 100% { transform: translateY(0) scale(1); }
