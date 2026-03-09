@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
     "@ai-sdk/svelte": "^4.0.116",
+    "@astrojs/check": "^0.9.6",
     "@astrojs/netlify": "^6.6.4",
     "@astrojs/svelte": "^7.2.5",
     "@tailwindcss/vite": "^4.2.1",

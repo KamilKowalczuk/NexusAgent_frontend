@@ -55,6 +55,14 @@
     ];
 
     try {
+      // Płynne przewijanie do terminala na urządzeniach mobilnych (poniżej breakpointu lg)
+      if (window.innerWidth < 1024) {
+        const terminalElement = document.getElementById("terminal-view");
+        if (terminalElement) {
+          terminalElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+
       // The options.body wasn't reacting appropriately in older `@ai-sdk/svelte` without passing payload directly,
       // so let's pass it via stringified options to complete.
       await generator.complete(targetUrl, {
@@ -137,6 +145,7 @@
 
   <!-- Right side – Terminal -->
   <div
+    id="terminal-view"
     class="glass rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative bg-black/80 fade-up"
     style="transition-delay: 200ms;"
   >
