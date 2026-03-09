@@ -12,42 +12,69 @@ interface Props {
 const { data, slots } = Astro.props;
 
 const navLinks = data?.navLinks || [
-  { label: 'Contrast', url: '#pain' },
-  { label: 'Demo', url: '#demo' },
-  { label: 'Engine', url: '#engine' },
-  { label: 'ROI', url: '#pricing' },
+  { label: "Contrast", url: "#pain" },
+  { label: "Demo", url: "#demo" },
+  { label: "Engine", url: "#engine" },
+  { label: "ROI", url: "#pricing" },
 ];
 
 // Label z Payload (tylko tekst, bez liczb), np. "Dostępne sloty"
-const slotLabel = data?.slotTrackerText || 'Dostępne sloty';
+const slotLabel = data?.slotTrackerText || "Dostępne sloty";
 
 // Liczby pobrane z props (SSR) - bez podwójnego fetchowania
 const totalSlots = slots?.totalSlots ?? 10;
 const usedSlots = slots?.usedSlots ?? 0;
 const availableSlots = Math.max(0, totalSlots - usedSlots);
 
-const ctaText = data?.ctaText || 'Zarezerwuj Slot';
-const ctaUrl = data?.ctaUrl || '#pricing';
+const ctaText = data?.ctaText || "Zarezerwuj Slot";
+const ctaUrl = data?.ctaUrl || "#pricing";
 ---
 
-<header class="sticky top-0 z-50 backdrop-blur-xl bg-bg-dark/80 border-b border-white/5 transition-all duration-300">
-  <div class="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto w-full">
+<header
+  class="sticky top-0 z-50 backdrop-blur-xl bg-bg-dark/80 border-b border-white/5 transition-all duration-300"
+>
+  <div
+    class="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto w-full"
+  >
     <a href="/" class="flex items-center gap-3 group">
-      <img src="/logo2.svg" alt="Nexus Agent" width="160" height="40" fetchpriority="high" decoding="async" class="h-10 auto-glitch" />
+      <img
+        src="/logo.webp"
+        alt="Nexus Agent"
+        fetchpriority="high"
+        decoding="async"
+        class="h-10 auto-glitch"
+      />
     </a>
 
-    <nav class="hidden md:flex items-center gap-12 font-display text-xs uppercase tracking-widest text-slate-400">
-      {navLinks.map((link) => (
-        <a class="hover:text-primary transition-colors duration-300" href={link.url}>{link.label}</a>
-      ))}
+    <nav
+      class="hidden md:flex items-center gap-12 font-display text-xs uppercase tracking-widest text-slate-400"
+    >
+      {
+        navLinks.map((link) => (
+          <a
+            class="hover:text-primary transition-colors duration-300"
+            href={link.url}
+          >
+            {link.label}
+          </a>
+        ))
+      }
     </nav>
 
     <div class="flex items-center gap-4">
-      <div class="hidden lg:flex items-center bg-slate-900/50 border border-slate-800 px-4 py-1.5 rounded-full mr-4 pulse-glow">
+      <div
+        class="hidden lg:flex items-center bg-slate-900/50 border border-slate-800 px-4 py-1.5 rounded-full mr-4 pulse-glow"
+      >
         <span class="size-2 bg-primary rounded-full animate-pulse mr-2"></span>
-        <span class="text-[10px] font-mono uppercase tracking-tighter text-slate-400">{slotLabel}: {usedSlots}/{totalSlots}</span>
+        <span
+          class="text-[10px] font-mono uppercase tracking-tighter text-slate-400"
+          >{slotLabel}: {usedSlots}/{totalSlots}</span
+        >
       </div>
-      <a href={ctaUrl} class="bg-primary text-bg-dark font-display font-bold text-[10px] uppercase px-6 py-3 rounded-full hover:brightness-110 hover:scale-105 transition-all duration-300 neon-shadow-cyan">
+      <a
+        href={ctaUrl}
+        class="bg-primary text-bg-dark font-display font-bold text-[10px] uppercase px-6 py-3 rounded-full hover:brightness-110 hover:scale-105 transition-all duration-300 neon-shadow-cyan"
+      >
         {ctaText}
       </a>
     </div>
