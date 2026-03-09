@@ -53,16 +53,11 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- Space Grotesk + Inter + JetBrains Mono — async, nie blokuje FCP -->
+    <!-- Space Grotesk + Inter + JetBrains Mono — ładujemy synchronicznie, żeby LCP wjechało od razu -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
-      media="print"
-      onload="this.media='all'"
     >
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
-    </noscript>
 
     <!-- Material Symbols: ładowane PO załadowaniu strony — plik 1MB nie blokuje FCP -->
     <link
