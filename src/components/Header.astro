@@ -6,9 +6,10 @@ interface Props {
     ctaText?: string;
     ctaUrl?: string;
   };
+  slots?: { totalSlots?: number; usedSlots?: number };
 }
 
-const { data } = Astro.props;
+const { data, slots } = Astro.props;
 
 const navLinks = data?.navLinks || [
   { label: 'Contrast', url: '#pain' },
@@ -20,23 +21,9 @@ const navLinks = data?.navLinks || [
 // Label z Payload (tylko tekst, bez liczb), np. "Dostępne sloty"
 const slotLabel = data?.slotTrackerText || 'Dostępne sloty';
 
-// Liczby pobieramy z Payload slots global (tak samo jak PricingSection)
-let totalSlots = 10;
-let usedSlots = 0;
-try {
-  const PAYLOAD_URL = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
-  const res = await fetch(`${PAYLOAD_URL}/api/globals/landing-page?depth=0`, {
-    signal: AbortSignal.timeout(2000),
-  });
-  if (res.ok) {
-    const d = await res.json();
-    totalSlots = d?.slots?.totalSlots ?? 10;
-    usedSlots = d?.slots?.usedSlots ?? 0;
-  }
-} catch (_) {
-  // Fallback to defaults if Payload offline
-}
-
+// Liczby pobrane z props (SSR) - bez podwójnego fetchowania
+const totalSlots = slots?.totalSlots ?? 10;
+const usedSlots = slots?.usedSlots ?? 0;
 const availableSlots = Math.max(0, totalSlots - usedSlots);
 
 const ctaText = data?.ctaText || 'Zarezerwuj Slot';

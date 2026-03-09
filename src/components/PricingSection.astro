@@ -17,25 +17,16 @@ interface Props {
     }[];
   };
   calculatorData?: any;
+  slots?: { totalSlots?: number; usedSlots?: number };
 }
 
-const { data, calculatorData } = Astro.props;
+const { data, calculatorData, slots } = Astro.props;
 
-// Fetch slot data server-side for initial render (avoids flash of wrong button)
-let initialSlots = { total: 10, used: 0 };
-try {
-  const PAYLOAD_URL = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
-  const slotsRes = await fetch(`${PAYLOAD_URL}/api/globals/landing-page?depth=0`, {
-    signal: AbortSignal.timeout(2500),
-  });
-  if (slotsRes.ok) {
-    const slotsData = await slotsRes.json();
-    initialSlots.total = slotsData?.slots?.totalSlots ?? 10;
-    initialSlots.used = slotsData?.slots?.usedSlots ?? 0;
-  }
-} catch (e) {
-  // Fallback to defaults — PricingInteractive re-checks on client
-}
+// Używamy danych o slotach przekazanych statycznie (SSG) z index.astro
+const initialSlots = {
+  total: slots?.totalSlots ?? 10,
+  used: slots?.usedSlots ?? 0,
+};
 
 const comparisonBadge = data?.comparisonBadge || 'Porównanie Wydajności';
 const comparisonTitle = data?.comparisonTitle || 'Rzeczywisty Zwrot z Inwestycji (ROI)';
@@ -81,7 +72,7 @@ const plans = data?.plans && data.plans.length > 0 ? data.plans : [
             <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-accent text-white text-[11px] font-bold px-6 py-2 rounded-full uppercase tracking-[0.3em]">{plan.badge}</div>
           )}
           <h3 class="font-display text-accent uppercase font-bold text-sm mb-3 tracking-widest">{plan.title}</h3>
-          <ul class="space-y-4 mb-8 flex-grow">
+          <ul class="space-y-4 mb-8 grow">
             {plan.features.map(f => (
               <li class="flex items-center gap-3 text-sm text-slate-100">
                 <span class="material-symbols-outlined text-accent text-xl">verified</span> {f.feature}
@@ -100,7 +91,7 @@ const plans = data?.plans && data.plans.length > 0 ? data.plans : [
         <div class="glass p-12 rounded-3xl border-white/5 flex flex-col opacity-60">
           <h3 class="font-display text-slate-500 uppercase font-bold text-sm mb-4 tracking-widest">{plan.title}</h3>
           <div class="text-4xl font-bold mb-10 text-white">{plan.price} <span class="text-xs font-normal text-slate-500">{plan.monthlySuffix}</span></div>
-          <ul class="space-y-5 mb-12 flex-grow">
+          <ul class="space-y-5 mb-12 grow">
             {plan.features.map(f => (
               <li class="flex items-center gap-3 text-sm text-slate-500">
                 <span class="material-symbols-outlined text-red-500/50 text-xl">cancel</span> {f.feature}

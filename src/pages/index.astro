@@ -24,12 +24,12 @@ try {
 ---
 
 <Layout meta={payloadData?.meta}>
-  <Header data={payloadData?.header} />
+  <Header data={payloadData?.header} slots={payloadData?.slots} />
   <HeroSection data={payloadData?.hero} />
   <PainSection data={payloadData?.pain} />
   <DemoSection data={payloadData?.demo} />
   <PipelineSection data={payloadData?.pipeline} />
-  <PricingSection data={payloadData?.pricing} calculatorData={payloadData?.roiCalculator} />
+  <PricingSection data={payloadData?.pricing} calculatorData={payloadData?.roiCalculator} slots={payloadData?.slots} />
   <FaqSection data={payloadData?.faq} />
   <ContactSection data={payloadData?.contact} />
   <CtaSection data={payloadData?.cta} />
