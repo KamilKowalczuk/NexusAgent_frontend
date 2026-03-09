@@ -14,7 +14,7 @@ interface Props {
 const { title: fallbackTitle, meta } = Astro.props;
 const siteTitle = meta?.title || fallbackTitle || "Nexus Agent TITAN – Pierwszy na świecie autonomiczny handlowiec AI.";
 const siteDescription = meta?.description || "Włączasz i rośniesz. Zautomatyzuj swój B2B outbound z Agentem AI.";
-const siteImage = meta?.image?.url ? `http://localhost:3000${meta.image.url}` : "/og-image.jpg"; // w produkcji url zmieni się na docelowe
+const siteImage = meta?.image?.url ? `http://nexusagent.pl${meta.image.url}` : "/og-image.jpg"; // w produkcji url zmieni się na docelowe
 const siteUrl = Astro.url.href;
 const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
 ---

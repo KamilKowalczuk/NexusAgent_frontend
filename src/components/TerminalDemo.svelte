@@ -24,11 +24,29 @@
   const generator = new Completion({
     api: "/api/demo-attack",
     streamProtocol: "text",
-    onFinish: () => {
+    onFinish: async () => {
       terminalLines = [
         ...terminalLines,
         `[SYSTEM] Symulacja ataku zakończona. Cel namierzony.`,
       ];
+      // Send metric to Payload CMS Dashboard
+      try {
+        await fetch(
+          `${import.meta.env?.PUBLIC_PAYLOAD_URL || "http://localhost:3000"}/api/demo-usages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              targetUrl,
+              generatedSubject: generator.completion
+                ? generator.completion.substring(0, 100)
+                : "Brak",
+            }),
+          },
+        );
+      } catch (e) {
+        console.error("Failed to log demo usage", e);
+      }
     },
     onError: (err) => {
       terminalLines = [...terminalLines, `[ERROR] API Error: ${err.message}`];
@@ -59,7 +77,10 @@
       if (window.innerWidth < 1024) {
         const terminalElement = document.getElementById("terminal-view");
         if (terminalElement) {
-          terminalElement.scrollIntoView({ behavior: "smooth", block: "start" });
+          terminalElement.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
         }
       }
 
