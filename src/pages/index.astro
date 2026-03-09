@@ -14,7 +14,7 @@ import Footer from '../components/Footer.astro';
 let payloadData = null;
 try {
   const PAYLOAD_URL = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
-  const res = await fetch(`${PAYLOAD_URL}/api/globals/landing-page`);
+  const res = await fetch(`${PAYLOAD_URL}/api/globals/landing-page?depth=1`);
   if (res.ok) {
     payloadData = await res.json();
   }
