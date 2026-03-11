@@ -45,9 +45,8 @@ const price = 1999 + Math.max(0, emails - 20) * 25;
 
           <p class="text-slate-400 text-sm leading-relaxed mb-10 max-w-md mx-auto">
             Subskrypcja jest aktywna. W ciągu
-            <strong class="text-white">24 godzin</strong> skontaktujemy się z Tobą, aby
-            doprecyzować grupę docelową, ofertę i kryteria odrzucania leadów. Od tego momentu
-            każdy dzień pracy NEXUS to mniej przepalonego budżetu na „ręczne próby”.
+            <strong class="text-white">24 godzin</strong> otrzymasz link do technicznego briefu.
+            Po jego wypełnieniu NEXUS przejmuje kontrolę, a Ty czekasz na gotowe leady.
           </p>
 
           <!-- Plan summary -->
@@ -71,10 +70,11 @@ const price = 1999 + Math.max(0, emails - 20) * 25;
           <!-- Next steps -->
           <div class="space-y-3 text-left mb-10">
             {[
-              'Potwierdzenie subskrypcji zostało wysłane na Twój email.',
-              'W ciągu 24 godzin skontaktuje się z Tobą człowiek odpowiedzialny za wdrożenie.',
-              'W trakcie onboardingu definiujemy branże, minimalną wartość kontraktu i decydentów.',
-              'NEXUS startuje w ciągu 14 dni – od tego momentu cold outbound nie leży już na barkach handlowców.',
+              'Autoryzacja (Natychmiast) - Otrzymujesz na maila potwierdzenie subskrypcji oraz informację o limicie.',
+              'Kalibracja Celu (do 24h) - Dostajesz link do technicznego briefu (max 15 minut).',
+              'Inicjalizacja Agenta (24-48h) - NEXUS skanuje rynek i buduje bazę firm z Twojej branży.',
+              'Uderzenie (od 48h) - Agent rozpoczyna pracę i generuje hiper-spersonalizowane wiadomości.',
+              'Raportowanie (Co 3 dni) - Otrzymujesz twarde dane na maila. Ty wkraczasz do akcji tylko przy odpowiedzi od klienta.',
             ].map((step, i) => (
               <div class="flex items-center gap-4">
                 <div class="size-6 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
