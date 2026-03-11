@@ -60,7 +60,7 @@
     return str.replace(/[<>]/g, '').trim();
   }
 
-  async function handleSubmit(e: Event) {
+    async function handleSubmit(e: Event) {
     e.preventDefault();
     status = 'loading';
     errorMessage = '';
@@ -91,7 +91,7 @@
         };
       } else {
         const data = await response.json();
-        throw new Error(data.error || 'Błąd serwera.');
+        throw new Error(data.error || 'Serwer odrzucił zgłoszenie. Spróbuj ponownie za kilka minut.');
       }
     } catch (error: any) {
       status = 'error';
@@ -110,8 +110,11 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-5 w-5 bg-green-500 shadow-[0_0_15px_#22c55e]"></span>
         </span>
-        <h3 class="font-display text-3xl font-bold uppercase text-white mb-4">Transmisja Zakończona</h3>
-        <p class="text-slate-400 text-sm mb-10 max-w-md mx-auto">Twoje zapytanie zostało przekazane. Nasz zespół odpowie w ciągu 24 godzin.</p>
+        <h3 class="font-display text-3xl font-bold uppercase text-white mb-4">Wiadomość przyjęta</h3>
+        <p class="text-slate-400 text-sm mb-10 max-w-md mx-auto">
+          Twoje zapytanie trafiło do zespołu odpowiedzialnego za wdrożenia. Odpowiemy w ciągu 24 godzin roboczych
+          z konkretną propozycją dalszych kroków – bez sprzedażowych „small talków”.
+        </p>
         <button
           onclick={() => status = 'idle'}
           class="inline-flex items-center gap-3 border border-white/10 text-slate-400 font-mono uppercase text-[10px] tracking-widest px-8 py-4 rounded-full hover:border-primary/30 hover:text-primary transition-all duration-300"
@@ -255,7 +258,7 @@
             onclick={() => formData.privacyConsent = !formData.privacyConsent}
             class="text-[11px] text-slate-500 leading-relaxed text-left cursor-pointer hover:text-slate-400 transition-colors"
           >
-            Akceptuję <a href="/polityka-prywatnosci" target="_blank" rel="noopener noreferrer" class="text-white hover:text-primary transition-colors font-semibold" onclick={(e: MouseEvent) => e.stopPropagation()}>Politykę Prywatności</a> i wyrażam zgodę na przetwarzanie danych w celu obsługi zapytania.
+            Akceptuję <a href="/polityka-prywatnosci" target="_blank" rel="noopener noreferrer" class="text-white hover:text-primary transition-colors font-semibold" onclick={(e: MouseEvent) => e.stopPropagation()}>Politykę Prywatności</a> i zgadzam się na kontakt wyłącznie w sprawie konfiguracji i działania NEXUS.
           </button>
         </div>
 

@@ -47,11 +47,11 @@
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error || 'Wystąpił błąd. Spróbuj ponownie.');
+        alert(data.error || 'Płatność nie przeszła. Sprawdź dane i spróbuj ponownie.');
         isLoading = false;
       }
     } catch (err) {
-      alert('Nie udało się połączyć z systemem płatności. Sprawdź połączenie.');
+      alert('Brak połączenia z systemem płatności. Twoja karta nie została obciążona.');
       isLoading = false;
     }
   }
@@ -112,7 +112,7 @@
 
   <!-- Dynamic Price Display -->
   <div class="text-center mb-8 py-6 border-y border-white/5">
-    <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-2">Twoja cena miesięcznie</div>
+    <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-2">Stały koszt systemu przy wybranej ilości wysyłek</div>
     <div
       class="text-6xl font-display font-bold text-white py-1"
       style="font-variant-numeric: tabular-nums; transition: color 0.3s ease;"
@@ -120,7 +120,7 @@
       {titanCost.toLocaleString('pl-PL')} <span class="text-2xl font-normal text-slate-400">PLN/mc</span>
     </div>
     <div class="text-slate-600 text-xs font-mono mt-2">
-      {emailsPerDay * 30} maili miesięcznie · {emailsPerDay} dziennie · 24/7
+      {emailsPerDay * 30} maili miesięcznie · {emailsPerDay} dziennie · 24/7 – bez L4, urlopów i prowizji.
     </div>
   </div>
 
@@ -136,7 +136,7 @@
         {/each}
       </div>
       <span class="font-mono text-[10px] text-slate-500 uppercase tracking-widest">
-        {usedSlots} / {totalSlots} zajętych slotów
+        {usedSlots} / {totalSlots} zajętych slotów – po zapełnieniu przechodzimy na listę oczekujących.
       </span>
     {:else}
       <span class="font-mono text-[10px] text-slate-600 uppercase tracking-widest animate-pulse">Sprawdzanie dostępności...</span>
@@ -153,7 +153,7 @@
     >
       {#if isLoading}
         <span class="material-symbols-outlined animate-spin text-sm">sync</span>
-        Przekierowanie do płatności...
+        Łączenie z systemem płatności...
       {:else}
         <span class="material-symbols-outlined text-sm">bolt</span>
         Aktywuj NEXUS · {titanCost.toLocaleString('pl-PL')} PLN/mc

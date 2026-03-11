@@ -8,19 +8,19 @@ interface Props {
 
 const { data } = Astro.props;
 
-const title = data?.title || 'Protocol FAQ';
+const title = data?.title || 'Pytania, które zadaje każdy prezes';
 const items = data?.items && data.items.length > 0 ? data.items : [
   {
     question: 'Czy to jest zgodne z RODO?',
-    answer: 'Tak. TITAN operuje wyłącznie na publicznie dostępnych danych firmowych i kontaktach B2B, realizując scenariusz "prawnie uzasadnionego interesu" (art. 6 RODO). Implementujemy mechanizm wypisania z bazy bezwzględnie kończący komunikację.'
+    answer: 'Tak. NEXUS działa wyłącznie na publicznie dostępnych danych firmowych i kontaktach B2B, w modelu "prawnie uzasadnionego interesu" (art. 6 RODO). Każda osoba może jednym kliknięciem trwale wypisać się z komunikacji – system blokuje dalsze wysyłki.'
   },
   {
     question: 'Jak wygląda proces wdrożenia?',
-    answer: 'Po opłaceniu abonamentu przez Stripe, przechodzimy przez konsultację onboardingową (człowiek, nie AI). Definiujemy grupę docelową, ofertę, ton komunikacji. TITAN rusza pełną mocą w ciągu 14 dni od startu.'
+    answer: 'Po opłaceniu abonamentu przechodzimy przez krótką konsultację z człowiekiem. Ustalamy branże, check-listę leadów do odrzucenia, minimalną wartość kontraktu i scenariusze odpowiedzi. NEXUS startuje w ciągu 14 dni – od tego momentu każdy dzień bez niego to utracone zapytania z rynku.'
   },
   {
     question: 'Czy mogę używać własnych domen?',
-    answer: 'Nie rekomendujemy. TITAN korzysta z własnego klastra infrastrukturalnych domen wysyłkowych, które przechodzą pełną procedurę warm-up. Twoja główna domena biznesowa pozostaje absolutnie nietknięta i bezpieczna.'
+    answer: 'Nie rekomendujemy. NEXUS korzysta z własnego klastra domen wysyłkowych, które są stale „rozgrzewane” i monitorowane. Twoja główna domena sprzedażowa pozostaje nienaruszona – nie ryzykujesz, że cała firma wyląduje w spamie przez jedną kampanię.'
   }
 ];
 ---

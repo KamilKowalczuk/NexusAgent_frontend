@@ -4,7 +4,13 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 ---
 
-<Layout meta={{ title: 'Błąd płatności – NEXUS Agent', description: 'Wystąpił problem podczas przetwarzania płatności.' }}>
+<Layout
+  meta={{
+    title: 'Błąd płatności – NEXUS Agent',
+    description:
+      'Płatność nie została zrealizowana. Żadna kwota nie została pobrana – możesz bezpiecznie spróbować ponownie.',
+  }}
+>
   <Header />
 
   <main class="min-h-screen flex flex-col items-center justify-center px-8 py-32 text-center relative overflow-hidden">
@@ -25,17 +31,17 @@ import Footer from '../components/Footer.astro';
           </span>
 
           <div class="inline-block px-4 py-1.5 bg-red-500/10 border border-red-500/30 rounded-full text-[10px] font-mono text-red-400 uppercase tracking-widest mb-6">
-            Błąd Transakcji
+            Płatność odrzucona
           </div>
 
           <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-tighter text-white mb-6">
-            Coś poszło<br />
-            <span class="text-red-400">Nie tak</span>
+            Transakcja<br />
+            <span class="text-red-400">nie została zrealizowana</span>
           </h1>
 
           <p class="text-slate-400 text-sm leading-relaxed mb-10 max-w-md mx-auto">
-            Płatność nie została przetworzona. Żadna kwota nie została pobrana.
-            Sprawdź dane karty i spróbuj ponownie — lub skontaktuj się z nami jeśli problem się powtarza.
+            Żadna kwota nie została pobrana. Najczęstsze powody to błędne dane karty, limity banku lub blokada płatności
+            online. Jeśli powtórzysz próbę później, a błąd się utrzyma – skontaktuj się z nami, zanim zrezygnujesz.
           </p>
 
           <!-- Error details -->
@@ -46,10 +52,10 @@ import Footer from '../components/Footer.astro';
             </div>
             <div class="space-y-2 text-sm">
               {[
-                'Sprawdź poprawność danych karty płatniczej',
-                'Upewnij się, że masz wystarczające środki',
-                'Sprawdź czy karta obsługuje płatności online',
-                'Skontaktuj się z nami jeśli problem się powtarza',
+                'Sprawdź poprawność danych karty płatniczej.',
+                'Upewnij się, że masz wystarczające środki oraz odblokowane płatności online.',
+                'Jeśli płacisz z konta firmowego, sprawdź wewnętrzne limity bezpieczeństwa.',
+                'Jeżeli problem wraca – daj nam znać, zanim odłożysz decyzję o wdrożeniu o kolejny miesiąc.',
               ].map((item) => (
                 <div class="flex items-center gap-3 text-slate-400">
                   <span class="material-symbols-outlined text-red-500/50 text-base shrink-0">error_outline</span>
@@ -82,7 +88,7 @@ import Footer from '../components/Footer.astro';
 
       <!-- Status bar -->
       <div class="font-mono text-[9px] text-slate-600 uppercase tracking-widest">
-        STATUS PŁATNOŚCI: NIEUDANA | NEXUS AGENT v2.4 | ŻADNA KWOTA NIE ZOSTAŁA POBRANA ✗
+        STATUS PŁATNOŚCI: NIEUDANA | NEXUS AGENT v2.4 | KARTA NIEZOBIĄZANA, MOŻESZ SPRÓBOWAĆ PONOWNIE ✗
       </div>
     </div>
   </main>

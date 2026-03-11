@@ -12,21 +12,21 @@ interface Props {
 const { data, slots } = Astro.props;
 
 const navLinks = data?.navLinks || [
-  { label: "Contrast", url: "#pain" },
-  { label: "Demo", url: "#demo" },
-  { label: "Engine", url: "#engine" },
-  { label: "ROI", url: "#pricing" },
+  { label: "Problem", url: "#pain" },
+  { label: "Demo ataku", url: "#demo" },
+  { label: "Proces", url: "#engine" },
+  { label: "Cennik / ROI", url: "#pricing" },
 ];
 
 // Label z Payload (tylko tekst, bez liczb), np. "Dostępne sloty"
-const slotLabel = data?.slotTrackerText || "Dostępne sloty";
+const slotLabel = data?.slotTrackerText || "Dostępne sloty (aktywni klienci)";
 
 // Liczby pobrane z props (SSR) - bez podwójnego fetchowania
 const totalSlots = slots?.totalSlots ?? 10;
 const usedSlots = slots?.usedSlots ?? 0;
 const availableSlots = Math.max(0, totalSlots - usedSlots);
 
-const ctaText = data?.ctaText || "Zarezerwuj Slot";
+const ctaText = data?.ctaText || "Uruchom NEXUS";
 const ctaUrl = data?.ctaUrl || "#pricing";
 ---
 

@@ -10,27 +10,31 @@ interface Props {
 
 const { data } = Astro.props;
 
-const oldWayTitle = data?.oldWayTitle || 'The Old Way';
+const oldWayTitle = data?.oldWayTitle || 'Stare Podejście';
 const oldWayItems = data?.oldWayItems || [
   {
-    title: 'Expensive SDRs',
-    description: '10,000 PLN/mc za pracownika, który spędza 70% czasu na ręcznym, wtórnym researchu i wklejaniu danych do CRM.',
+    title: 'Drogi zespół SDR',
+    description:
+      'Około 10 000 PLN/mc za jeden etat, który 70% dnia spędza na scrollowaniu LinkedIna, kopiuj-wklej do CRM i odpisywaniu na „może kiedyś”. Zero gwarancji pipeline’u.',
   },
   {
-    title: 'Generic Agencies',
-    description: 'Szablonowe maile z generatorów, które trafiają prosto do spamu przez brak kontekstu i tanie sztuczki socjotechniczne.',
+    title: 'Generyczne agencje',
+    description:
+      'Te same szablony, ta sama lista, ten sam spam w każdej branży. Efekt: wypalona baza, zablokowane domeny i leady, które idą do bardziej konkretnych graczy.',
   },
 ];
 
-const titanWayTitle = data?.titanWayTitle || 'The Titan Way';
+const titanWayTitle = data?.titanWayTitle || 'Podejście NEXUS';
 const titanWayItems = data?.titanWayItems || [
   {
-    title: 'Hyper-Personalization',
-    description: 'Wstrzykujemy unikalne fakty wyciągnięte z case studies i wpisów na blogu na ułamek sekundy przed wysłaniem maila.',
+    title: 'Precyzyjny dobór celów',
+    description:
+      'System filtruje rynek pod kątem marży, stacku technologicznego i realnej władzy decyzyjnej. Nie marnujesz wysyłek na firmy, które nigdy nie kupią.',
   },
   {
-    title: 'Autonomiczne Domykanie',
-    description: 'System zdejmuje z Ciebie czarną robotę. Skupiasz się tylko na leadach, które powiedziały "TAK, porozmawiajmy".',
+    title: 'Autonomiczne domykanie',
+    description:
+      'NEXUS dowozi tylko odpowiedzi od ludzi, którzy chcą rozmawiać. Twój kalendarz wypełniają realne szanse sprzedaży zamiast „wróćmy do tematu po Q4”.',
   },
 ];
 ---

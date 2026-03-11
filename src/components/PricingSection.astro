@@ -28,32 +28,49 @@ const initialSlots = {
   used: slots?.usedSlots ?? 0,
 };
 
-const comparisonBadge = data?.comparisonBadge || 'Porównanie Wydajności';
-const comparisonTitle = data?.comparisonTitle || 'Rzeczywisty Zwrot z Inwestycji (ROI)';
+const comparisonBadge = data?.comparisonBadge || 'KOSZT UTRACONYCH PRZYCHODÓW';
+const comparisonTitle =
+  data?.comparisonTitle || 'Ile płacisz za brak systemowego outboundu';
 
-const plans = data?.plans && data.plans.length > 0 ? data.plans : [
-  {
-    title: 'Wewnętrzny Handlowiec',
-    price: '10,000 PLN',
-    monthlySuffix: '/mc',
-    features: [{ feature: 'Ręczne wpisywanie danych' }, { feature: 'Koszty L4/Urlopów' }, { feature: 'Koszty sprzętu i narzędzi' }]
-  },
-  {
-    title: 'Pełna Automatyzacja',
-    badge: 'MODEL NEXUS',
-    price: '1,999 PLN',
-    monthlySuffix: '/mc',
-    isFeatured: true,
-    ctaText: 'Aktywuj NEXUS',
-    features: [{ feature: '1500+ Personalizacji /mc' }, { feature: '24/7 Autonomiczna Praca' }, { feature: 'Silnik Głębokiego Researchu' }, { feature: 'Bezpieczna Ekstrakcja do CRM' }]
-  },
-  {
-    title: 'Agencja Zewnętrzna',
-    price: '5,000 PLN',
-    monthlySuffix: '/mc',
-    features: [{ feature: 'Generyczne szablony PDF' }, { feature: 'Brak transparentności' }, { feature: 'Prowizje za Success Fee' }]
-  }
-];
+const plans =
+  data?.plans && data.plans.length > 0
+    ? data.plans
+    : [
+        {
+          title: 'Wewnętrzny handlowiec',
+          price: '10 000 PLN',
+          monthlySuffix: '/mc',
+          features: [
+            { feature: 'Stały koszt etatu niezależnie od wyniku' },
+            { feature: 'L4, urlopy, rotacja i szkolenia co rok' },
+            { feature: 'Subiektywne raporty „dużo dzwoniliśmy, mało się dzieje”' },
+          ],
+        },
+        {
+          title: 'Model NEXUS',
+          badge: 'REKOMENDOWANA KONFIGURACJA',
+          price: '1 999 PLN',
+          monthlySuffix: '/mc',
+          isFeatured: true,
+          ctaText: 'Aktywuj NEXUS',
+          features: [
+            { feature: 'Do 1500 precyzyjnych wysyłek miesięcznie' },
+            { feature: 'Automatyczny research i personalizacja pod każdy cel' },
+            { feature: 'Raporty w liczbach: koszt leada, odpowiedzi, spotkania' },
+            { feature: 'Bezpieczna integracja z Twoim CRM' },
+          ],
+        },
+        {
+          title: 'Agencja lead gen',
+          price: '5 000 PLN',
+          monthlySuffix: '/mc',
+          features: [
+            { feature: 'Ten sam szablon w dziesiątkach firm z Twojej niszy' },
+            { feature: 'Brak wglądu w realne metryki i proces' },
+            { feature: 'Prowizje za „success fee”, nawet przy słabej jakości leadach' },
+          ],
+        },
+      ];
 ---
 
 <section class="max-w-7xl mx-auto px-8 py-32 w-full" id="pricing">

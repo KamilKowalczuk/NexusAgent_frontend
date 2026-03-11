@@ -22,32 +22,38 @@
   }
 
   // Formatters with Payload Fallbacks
-  let titleText = $derived(data?.title || "ROI Calculator");
+  let titleText = $derived(
+    data?.title || "Kalkulator utraconego i odzyskanego przychodu",
+  );
 
   let targetText = $derived(
-    (data?.targetFormat || "Target: {{count}} maili / dzień").replace(
+    (data?.targetFormat ||
+      "Cel wysyłki: {{count}} precyzyjnych maili dziennie")?.replace(
       "{{count}}",
       emailsPerDay.toString(),
     ),
   );
 
   let titanVsText = $derived(
-    (data?.titanHeader || "NEXUS vs {{count}} SDR").replace(
+    (data?.titanHeader ||
+      "NEXUS vs {{count}} etatów SDR, które musiałbyś utrzymać")?.replace(
       "{{count}}",
       sdrEquivalent.toString(),
     ),
   );
 
   let sdrCostText = $derived(
-    (data?.sdrCostFormat || "Koszt SDR: {{cost}} zł / mc").replace(
+    (data?.sdrCostFormat ||
+      "Miesięczny koszt zespołu SDR: {{cost}} zł")?.replace(
       "{{cost}}",
       sdrCost.toLocaleString("pl-PL"),
     ),
   );
 
   let savingsText = $derived(
-    (data?.savingsFormat || "▲ Oszczędzasz {{savings}} PLN ({{percent}}%)")
-      .replace("{{savings}}", savings.toLocaleString("pl-PL"))
+    (data?.savingsFormat ||
+      "▲ Zatrzymujesz {{savings}} PLN miesięcznie zamiast oddawać je na pensje i prowizje ({{percent}}%)")
+      ?.replace("{{savings}}", savings.toLocaleString("pl-PL"))
       .replace("{{percent}}", savingsPercent.toString()),
   );
 </script>

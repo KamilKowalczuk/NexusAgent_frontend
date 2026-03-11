@@ -11,9 +11,12 @@ interface Props {
 
 const { data } = Astro.props;
 
-const badge = data?.badge || 'Kontakt';
-const headline = data?.headline || 'Rozpocznij Współpracę';
-const subtitle = data?.subtitle || 'Wypełnij formularz, aby zainicjować proces wdrożenia TITAN w Twojej organizacji. Odpowiadamy w ciągu 24h.';
+const badge = data?.badge || 'Onboarding';
+const headline =
+  data?.headline || 'Skonfiguruj NEXUS pod swój lejek sprzedaży';
+const subtitle =
+  data?.subtitle ||
+  'Podaj parametry biznesu, marżę i profil idealnego klienta. Wrócimy z konkretnym planem kampanii i prognozą przychodów – bez płacenia za discovery call.';
 ---
 
 <section class="max-w-7xl mx-auto px-4 sm:px-8 py-32 w-full relative" id="contact">

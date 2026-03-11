@@ -9,10 +9,14 @@ interface Props {
 
 const { data } = Astro.props;
 
+const year = new Date().getFullYear();
+
 const copyright =
-  data?.copyright || "© 2024 NEXUS AI SYSTEMS. Wszelkie prawa zastrzeżone.";
+  data?.copyright ||
+  `© ${year} NEXUS SYSTEMS. Odpowiadasz za każdy dzień bez działającego outboundu.`;
 const status =
-  data?.status || "MODEL TITAN V2.4 | STOS: GEMINI / FIRECRAWL / VERCEL AI";
+  data?.status ||
+  "NEXUS ENGINE V2.4 | AKTYWNE KAMPANIE B2B / AUDYT LEADÓW / TRACKING PRZYCHODÓW";
 const navLinks =
   data?.navLinks && data.navLinks.length > 0
     ? data.navLinks

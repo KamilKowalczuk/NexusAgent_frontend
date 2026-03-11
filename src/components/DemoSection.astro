@@ -12,10 +12,13 @@ interface Props {
 
 const { data } = Astro.props;
 
-const badge = data?.badge || 'LIVE TERMINAL_SIMULATION';
-const headline = data?.headline || 'System Analysis Protocol';
-const inputLabelUrl = data?.inputLabelUrl || 'URL firmy do ataku';
-const inputLabelIndustry = data?.inputLabelIndustry || 'Branża docelowa';
+const badge = data?.badge || 'LIVE REVENUE_ATTACK_SIMULATION';
+const headline =
+  data?.headline ||
+  'Wpisz adres konkurenta. Zobacz, jak wielu ich klientów możesz przejąć.';
+const inputLabelUrl =
+  data?.inputLabelUrl || 'URL firmy, z którą dziś przegrywasz kontrakty';
+const inputLabelIndustry = data?.inputLabelIndustry || 'Branża / segment (opcjonalnie)';
 ---
 
 <TerminalDemo 

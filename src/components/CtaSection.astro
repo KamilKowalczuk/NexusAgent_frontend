@@ -30,13 +30,15 @@ try {
 
 const availableSlots = Math.max(0, totalSlots - usedSlots);
 
-const headline = data?.headline || 'Ostatni krok przed skalowaniem.';
+const headline = data?.headline || 'Każdy wolny slot to pieniądze, które dziś ktoś inny zgarnia z rynku.';
 // Jeśli Payload ma własny subtitle, użyj go; jeśli nie, generuj z żywymi danymi
 const subtitle = data?.subtitle ||
-  `Zostało tylko <span class="text-white font-bold underline decoration-primary">${availableSlots} z ${totalSlots} dostępnych slotów</span> na ten miesiąc. Zamknięcie naboru nastąpi automatycznie po wypełnieniu miejsc.`;
-const buttonText = data?.buttonText || 'Zarezerwuj Swoje Miejsce';
+  `Masz do dyspozycji <span class="text-white font-bold underline decoration-primary">${availableSlots} z ${totalSlots} miejsc</span> na ten miesiąc. Po zapełnieniu slotów przyjmujemy wyłącznie zapisy na listę oczekujących – wtedy Twoja konkurencja wyprzedza Cię o cały kwartał.`;
+const buttonText = data?.buttonText || 'Zabezpiecz slot dla swojej firmy';
 const buttonUrl = data?.buttonUrl || '#pricing';
-const systemStatus = data?.systemStatus || `System status: Active | Sloty: ${usedSlots}/${totalSlots} | Slot verification: Online`;
+const systemStatus =
+  data?.systemStatus ||
+  `Status: NEXUS aktywny | Wykorzystane sloty: ${usedSlots}/${totalSlots} | Weryfikacja obciążenia: stabilna`;
 ---
 
 <section class="max-w-7xl mx-auto px-4 sm:px-8 py-16 md:py-32 w-full fade-up">
