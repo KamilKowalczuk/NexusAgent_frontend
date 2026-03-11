@@ -104,7 +104,7 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
           ['scroll', 'mousemove', 'touchstart', 'click', 'keydown'].forEach(function(e) {
             window.addEventListener(e, injectGTM, { once: true, passive: true });
           });
-          setTimeout(injectGTM, 3000);
+          setTimeout(injectGTM, 6000);
         })();
       </script>
     )}
