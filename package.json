@@ -21,7 +21,6 @@
     "@tailwindcss/vite": "^4.2.1",
     "ai": "^6.0.116",
     "astro": "^5.17.1",
-    "material-symbols": "^0.40.2",
     "resend": "^6.9.3",
     "stripe": "^20.4.1",
     "svelte": "^5.53.7",

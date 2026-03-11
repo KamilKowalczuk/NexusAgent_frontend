@@ -3,7 +3,6 @@ import '@fontsource/space-grotesk/500.css';
 import '@fontsource/space-grotesk/700.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/jetbrains-mono/400.css';
-import 'material-symbols/outlined.css';
 
 import '../styles/global.css';
 import CookieConsent from '../components/CookieConsent.astro';
@@ -41,6 +40,17 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
 
     <!-- Preload LCP element (logo) — browser fetches it immediately, nie czeka na CSS chain -->
     <link rel="preload" href="/logo.webp" as="image" type="image/webp" fetchpriority="high">
+
+    <!-- Ikony Material Symbols z CDN asynchronicznie (aby nie blokować renderowania) -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=block"
+      media="print"
+      onload="this.media='all'"
+    >
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@400,0&display=block">
+    </noscript>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -94,7 +104,7 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
           ['scroll', 'mousemove', 'touchstart', 'click', 'keydown'].forEach(function(e) {
             window.addEventListener(e, injectGTM, { once: true, passive: true });
           });
-          setTimeout(injectGTM, 6500);
+          setTimeout(injectGTM, 3000);
         })();
       </script>
     )}
