@@ -132,7 +132,7 @@
           onclick={() => status = 'idle'}
           class="inline-flex items-center gap-3 border border-white/10 text-slate-400 font-mono uppercase text-[10px] tracking-widest px-8 py-4 rounded-full hover:border-primary/30 hover:text-primary transition-all duration-300"
         >
-          Nowa transmisja
+          Nowa wiadomość
         </button>
       </div>
     </div>
