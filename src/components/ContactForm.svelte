@@ -83,14 +83,27 @@
         body: JSON.stringify(sanitizedData),
       });
 
-      if (response.ok) {
+      // Zabezpieczenie przed błędem JSON.parse gdy serwer zwróci HTML (np. 404 lub 500 z Netlify)
+      const textResponse = await response.text();
+      let data;
+      try {
+        data = textResponse ? JSON.parse(textResponse) : {};
+      } catch (parseErr) {
+        console.error("Błąd parsowania odpowiedzi:", textResponse);
+        throw new Error('Serwer zwrócił nieprawidłową odpowiedź. Spróbuj ponownie.');
+      }
+
+      if (response.ok && data.success) {
         status = 'success';
         formData = {
           name: '', company: '', nip: '', phone: '',
           email: '', message: '', bot_field: '', privacyConsent: false,
         };
+        isNameTouched = false;
+        isEmailTouched = false;
+        isPhoneTouched = false;
+        isMessageTouched = false;
       } else {
-        const data = await response.json();
         throw new Error(data.error || 'Serwer odrzucił zgłoszenie. Spróbuj ponownie za kilka minut.');
       }
     } catch (error: any) {
