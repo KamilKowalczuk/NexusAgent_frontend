@@ -105,7 +105,7 @@ const GTM_ID = import.meta.env.PUBLIC_GTM_ID || '';
             window.addEventListener(e, injectGTM, { once: true, passive: true });
           });
           // Zwiększamy timeout do 8.5s, żeby Lighthouse na wolnych łączach (Mobile 4G) zdążył skończyć test przed odpaleniem GTM
-          setTimeout(injectGTM, 8500);
+          setTimeout(injectGTM, 6500);
         })();
       </script>
     )}
