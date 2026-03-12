@@ -183,10 +183,10 @@
   </div>
 </div>
 
-<!-- Waitlist Modal -->
+<!-- Waitlist Modal Overlay (Covers only the pricing card) -->
 {#if showWaitlist}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    class="absolute -inset-8 md:-inset-10 z-50 flex items-center justify-center p-4 rounded-3xl overflow-hidden"
     role="dialog"
     aria-modal="true"
     aria-label="Lista Oczekujących"
@@ -196,12 +196,12 @@
     <!-- Backdrop -->
     <button
       type="button"
-      class="absolute inset-0 bg-black/80 backdrop-blur-sm w-full h-full border-0 cursor-default"
+      class="absolute inset-0 bg-black/90 backdrop-blur-md w-full h-full border-0 cursor-default"
       onclick={() => showWaitlist = false}
       aria-label="Zamknij modal"
     ></button>
-    <!-- Modal -->
-    <div class="relative z-10 w-full max-w-lg">
+    <!-- Modal Content -->
+    <div class="relative z-10 w-full max-w-sm scale-95 origin-center animate-[hero-anim-up_0.3s_ease-out_forwards]">
       <WaitlistModal
         {emailsPerDay}
         onClose={() => showWaitlist = false}

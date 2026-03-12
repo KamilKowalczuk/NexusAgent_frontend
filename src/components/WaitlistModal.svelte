@@ -11,29 +11,62 @@
   let lastName = $state('');
   let email = $state('');
   let phone = $state('');
+  let bot_field = $state('');
 
   let isLoading = $state(false);
   let isSuccess = $state(false);
   let errorMessage = $state('');
 
+  let isEmailTouched = $state(false);
+  let isPhoneTouched = $state(false);
+
+  // Sanitization functions
+  function sanitizeName(type: 'first' | 'last') {
+    if (type === 'first') {
+      firstName = firstName.replace(/[^a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]/g, '');
+    } else {
+      lastName = lastName.replace(/[^a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]/g, '');
+    }
+  }
+
+  function sanitizePhone() {
+    phone = phone.replace(/[^\d\s+\-()]/g, '');
+  }
+
+  function sanitizeHTML(str: string) {
+    if (!str) return '';
+    return str.replace(/[<>]/g, '').trim();
+  }
+
+  // Validation
+  let isEmailValid = $derived(
+    !email || /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)
+  );
+  
+  let isPhoneValid = $derived(
+    !phone || phone.replace(/\D/g, '').length >= 9
+  );
+
+  let canSubmit = $derived(
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    isEmailValid &&
+    (phone === '' || isPhoneValid)
+  );
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
-    if (isLoading) return;
+    if (isLoading || !canSubmit) return;
+
+    // Honeypot check - silently succeed for bots
+    if (bot_field) {
+      isSuccess = true;
+      setTimeout(() => onClose(), 3000);
+      return;
+    }
 
     errorMessage = '';
-
-    // Client validation
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      errorMessage = 'Imię, nazwisko i email są wymagane.';
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      errorMessage = 'Podaj prawidłowy adres email.';
-      return;
-    }
-
     isLoading = true;
 
     try {
@@ -41,10 +74,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim().toLowerCase(),
-          phone: phone.trim(),
+          firstName: sanitizeHTML(firstName),
+          lastName: sanitizeHTML(lastName),
+          email: sanitizeHTML(email).toLowerCase(),
+          phone: sanitizeHTML(phone),
           emailsPerDay,
         }),
       });
@@ -71,139 +104,158 @@
   }
 </script>
 
-<div
-  class="glass rounded-3xl border border-white/10 p-8 md:p-10 bg-black/95 shadow-2xl"
+<!-- Outer gradient border wrapper matching ContactForm -->
+<div 
+  class="rounded-3xl p-[1px] bg-gradient-to-b from-white/10 to-white/[0.02] w-full max-w-lg mx-auto shadow-2xl"
   onclick={(e) => e.stopPropagation()}
   role="none"
 >
-  {#if !isSuccess}
-    <!-- Header -->
-    <div class="flex items-start justify-between mb-8">
-      <div>
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent/20 bg-accent/5 mb-3 text-[10px] font-mono text-accent uppercase tracking-[0.2em]">
-          Lista Oczekujących
+  <!-- Inner glass box -->
+  <div class="bg-black/95 backdrop-blur-xl rounded-3xl p-6 md:p-8 relative overflow-hidden">
+    
+    <!-- Close Button -->
+    <button
+      onclick={onClose}
+      class="absolute top-6 right-6 size-8 flex items-center justify-center text-slate-500 hover:text-white transition-colors z-10"
+      aria-label="Zamknij"
+    >
+      <span class="material-symbols-outlined text-xl">close</span>
+    </button>
+
+    {#if !isSuccess}
+      <!-- Header -->
+      <div class="mb-8 relative z-10">
+        <div class="inline-flex items-center gap-2 mb-4">
+          <span class="size-1.5 bg-primary rounded-full shadow-[0_0_6px_#0ceaed] animate-pulse"></span>
+          <span class="text-[10px] font-mono text-primary uppercase tracking-widest">Lista Oczekujących</span>
         </div>
-        <h3 class="font-display text-2xl font-bold uppercase tracking-tighter text-white">
-          Zarezerwuj swoje miejsce
+        <h3 class="font-display text-2xl md:text-3xl font-bold uppercase tracking-tight text-white mb-2">
+          Zarezerwuj miejsce
         </h3>
-        <p class="text-slate-500 text-sm mt-2 leading-relaxed">
-          Gdy tylko zwolni się slot, skontaktujemy się z Tobą jako pierwszy.
+        <p class="text-slate-400 text-sm leading-relaxed">
+          Zasoby są obecnie w pełni alokowane. Zostaw kontakt, a powiadomimy Cię jako pierwszego, gdy zwolni się slot.
         </p>
       </div>
-      <button
-        onclick={onClose}
-        class="size-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all shrink-0 mt-1"
-        aria-label="Zamknij"
-      >
-        <span class="material-symbols-outlined text-slate-400 text-base">close</span>
-      </button>
-    </div>
 
-    <!-- Form -->
-    <form onsubmit={handleSubmit} class="space-y-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-1.5">
-          <label for="wl-firstname" class="font-mono text-[10px] uppercase text-slate-500 tracking-widest">Imię *</label>
+      <!-- Form -->
+      <form onsubmit={handleSubmit} class="space-y-6 relative z-10" autocomplete="off">
+        <!-- Honeypot -->
+        <div class="hidden" aria-hidden="true">
+          <input type="text" name="bot_field" tabindex="-1" bind:value={bot_field} autocomplete="off" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label for="wl-firstname" class="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">
+              Imię <span class="text-primary">*</span>
+            </label>
+            <input
+              id="wl-firstname"
+              bind:value={firstName}
+              oninput={() => sanitizeName('first')}
+              type="text"
+              required
+              disabled={isLoading}
+              placeholder="Jan"
+              class="w-full bg-white/[0.03] border border-white/10 rounded-xl px-5 py-4 text-sm text-white font-medium focus:outline-none focus:border-primary/50 focus:shadow-[0_0_15px_rgba(12,234,237,0.1)] transition-all duration-300 placeholder:text-slate-600 disabled:opacity-40"
+            />
+          </div>
+          <div class="space-y-2">
+            <label for="wl-lastname" class="text-[10px] font-mono text-slate-500 uppercase tracking-widest block">
+              Nazwisko <span class="text-primary">*</span>
+            </label>
+            <input
+              id="wl-lastname"
+              bind:value={lastName}
+              oninput={() => sanitizeName('last')}
+              type="text"
+              required
+              disabled={isLoading}
+              placeholder="Kowalski"
+              class="w-full bg-white/[0.03] border border-white/10 rounded-xl px-5 py-4 text-sm text-white font-medium focus:outline-none focus:border-primary/50 focus:shadow-[0_0_15px_rgba(12,234,237,0.1)] transition-all duration-300 placeholder:text-slate-600 disabled:opacity-40"
+            />
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label for="wl-email" class="text-[10px] font-mono uppercase tracking-widest flex justify-between {isEmailValid ? 'text-slate-500' : 'text-red-400'}">
+            <span>Email służbowy <span class="text-primary">*</span></span>
+            {#if !isEmailValid && isEmailTouched}<span class="text-red-400">Nieprawidłowy</span>{/if}
+          </label>
           <input
-            id="wl-firstname"
-            bind:value={firstName}
-            type="text"
+            id="wl-email"
+            bind:value={email}
+            onblur={() => isEmailTouched = true}
+            type="email"
             required
             disabled={isLoading}
-            placeholder="Jan"
-            class="w-full bg-white/5 border border-white/10 focus:border-accent/40 focus:ring-1 focus:ring-accent/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-700 outline-none transition-all"
+            placeholder="jan@firma.pl"
+            class="w-full bg-white/[0.03] border rounded-xl px-5 py-4 text-sm font-medium focus:outline-none transition-all duration-300 placeholder:text-slate-600 disabled:opacity-40 {isEmailValid || !isEmailTouched ? 'border-white/10 text-white focus:border-primary/50 focus:shadow-[0_0_15px_rgba(12,234,237,0.1)]' : 'border-red-500/30 text-red-400'}"
           />
         </div>
-        <div class="space-y-1.5">
-          <label for="wl-lastname" class="font-mono text-[10px] uppercase text-slate-500 tracking-widest">Nazwisko *</label>
+
+        <div class="space-y-2">
+          <label for="wl-phone" class="text-[10px] font-mono uppercase tracking-widest flex justify-between {isPhoneValid ? 'text-slate-500' : 'text-red-400'}">
+            <span>Telefon <span class="text-slate-600 lowercase">(opcjonalnie)</span></span>
+            {#if !isPhoneValid && isPhoneTouched}<span class="text-red-400">Min. 9 cyfr</span>{/if}
+          </label>
           <input
-            id="wl-lastname"
-            bind:value={lastName}
-            type="text"
-            required
+            id="wl-phone"
+            bind:value={phone}
+            oninput={sanitizePhone}
+            onblur={() => isPhoneTouched = true}
+            type="tel"
             disabled={isLoading}
-            placeholder="Kowalski"
-            class="w-full bg-white/5 border border-white/10 focus:border-accent/40 focus:ring-1 focus:ring-accent/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-700 outline-none transition-all"
+            placeholder="+48 000 000 000"
+            class="w-full bg-white/[0.03] border rounded-xl px-5 py-4 text-sm font-medium focus:outline-none transition-all duration-300 placeholder:text-slate-600 disabled:opacity-40 {isPhoneValid || !isPhoneTouched ? 'border-white/10 text-white focus:border-primary/50 focus:shadow-[0_0_15px_rgba(12,234,237,0.1)]' : 'border-red-500/30 text-red-400'}"
           />
         </div>
-      </div>
 
-      <div class="space-y-1.5">
-        <label for="wl-email" class="font-mono text-[10px] uppercase text-slate-500 tracking-widest">Email *</label>
-        <input
-          id="wl-email"
-          bind:value={email}
-          type="email"
-          required
-          disabled={isLoading}
-          placeholder="jan@firma.pl"
-          class="w-full bg-white/5 border border-white/10 focus:border-accent/40 focus:ring-1 focus:ring-accent/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-700 outline-none transition-all"
-        />
-      </div>
-
-      <div class="space-y-1.5">
-        <label for="wl-phone" class="font-mono text-[10px] uppercase text-slate-500 tracking-widest">Telefon (opcjonalnie)</label>
-        <input
-          id="wl-phone"
-          bind:value={phone}
-          type="tel"
-          disabled={isLoading}
-          placeholder="+48 600 000 000"
-          class="w-full bg-white/5 border border-white/10 focus:border-accent/40 focus:ring-1 focus:ring-accent/20 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-700 outline-none transition-all"
-        />
-      </div>
-
-      {#if errorMessage}
-        <div class="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-          <span class="material-symbols-outlined text-base shrink-0">error</span>
-          {errorMessage}
-        </div>
-      {/if}
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        class="w-full bg-accent hover:brightness-110 text-white font-display font-bold text-sm uppercase py-4 rounded-2xl transition-all duration-300 neon-shadow-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-2"
-      >
-        {#if isLoading}
-          <span class="material-symbols-outlined animate-spin text-sm">sync</span>
-          Zapisuję...
-        {:else}
-          <span class="material-symbols-outlined text-sm">queue</span>
-          Zapisz mnie na listę
+        {#if errorMessage}
+          <div class="rounded-xl border border-red-500/20 bg-red-500/5 px-5 py-3">
+            <span class="font-mono text-[10px] text-red-400 uppercase tracking-widest">SYS_ERR: {errorMessage}</span>
+          </div>
         {/if}
-      </button>
 
-      <p class="text-center text-[10px] text-slate-600 font-mono">
-        Twoje dane są bezpieczne. Nie udostępniamy ich osobom trzecim.
-      </p>
-    </form>
-  {:else}
-    <!-- Success state -->
-    <div class="text-center py-8">
-      <span class="relative flex h-16 w-16 mx-auto mb-6">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-30"></span>
-        <span class="relative inline-flex rounded-full h-16 w-16 bg-accent/20 border border-accent/40 items-center justify-center">
-          <span class="material-symbols-outlined text-accent text-3xl">done</span>
+        <div class="pt-2">
+          <button
+            type="submit"
+            disabled={isLoading || !canSubmit}
+            class="w-full inline-flex items-center justify-center gap-3 bg-primary text-bg-dark font-display font-bold uppercase text-xs px-12 py-5 rounded-full hover:brightness-110 hover:scale-[1.02] transition-all duration-300 neon-shadow-cyan disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:brightness-100"
+          >
+            {#if isLoading}
+              <div class="size-4 animate-spin rounded-full border-2 border-bg-dark border-t-transparent"></div>
+              <span>Przetwarzanie...</span>
+            {:else}
+              <span>Zapisz na listę</span>
+              <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            {/if}
+          </button>
+        </div>
+
+        <p class="text-center text-[10px] text-slate-600 font-mono mt-4">
+          Dane szyfrowane. Zero spamu.
+        </p>
+      </form>
+    {:else}
+      <!-- Success state -->
+      <div class="text-center py-12 relative z-10">
+        <span class="relative flex h-12 w-12 mx-auto mb-8">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-40"></span>
+          <span class="relative inline-flex rounded-full h-12 w-12 bg-primary shadow-[0_0_20px_rgba(12,234,237,0.5)] items-center justify-center">
+            <span class="material-symbols-outlined text-bg-dark text-xl">done</span>
+          </span>
         </span>
-      </span>
-      <h3 class="font-display text-2xl font-bold uppercase tracking-tighter text-white mb-3">
-        Jesteś na liście!
-      </h3>
-      <p class="text-slate-400 text-sm leading-relaxed">
-        Gdy tylko zwolni się slot, skontaktujemy się z Tobą na adres<br />
-        <strong class="text-white">{email}</strong>
-      </p>
-      <div class="mt-4 text-[10px] font-mono text-slate-600 uppercase tracking-widest">
-        Okno zamknie się automatycznie...
+        <h3 class="font-display text-2xl font-bold uppercase tracking-tight text-white mb-3">
+          Miejsce zarezerwowane
+        </h3>
+        <p class="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto mb-8">
+          Otrzymasz powiadomienie na adres <strong class="text-white font-medium">{email}</strong> natychmiast, gdy zwolni się slot w systemie.
+        </p>
+        <div class="text-[10px] font-mono text-slate-600 uppercase tracking-widest">
+          Zamykanie okna...
+        </div>
       </div>
-    </div>
-  {/if}
+    {/if}
+  </div>
 </div>
-
-<style>
-  .glass {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
-</style>
