@@ -27,7 +27,8 @@ const secondaryText = data?.secondaryText || "Zobacz architekturę systemu";
 ---
 
 <section
-  class="flex flex-col items-center justify-center min-h-screen px-4 text-center max-w-5xl mx-auto relative"
+  class="flex flex-col items-center justify-center px-4 text-center max-w-5xl mx-auto relative"
+  style="min-height: calc(100dvh - 7rem); height: calc(100dvh - 7rem);"
 >
   <!-- Ambient floating orbs – no clipping, bleed freely -->
   <div
@@ -87,7 +88,7 @@ const secondaryText = data?.secondaryText || "Zobacz architekturę systemu";
 
   <!-- Scroll indicator -->
   <div
-    class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce opacity-30"
+    class="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce opacity-50"
   >
     <svg
       width="24"

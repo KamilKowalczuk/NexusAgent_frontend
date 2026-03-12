@@ -54,7 +54,7 @@ export const POST: APIRoute = async ({ request }) => {
         priceInPLN: priceInPLN.toString(),
       },
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&emails=${emailsPerDay}`,
-      cancel_url: cancelUrl,
+      cancel_url: `${cancelUrl}?from=stripe`,
       locale: 'pl',
     });
 
