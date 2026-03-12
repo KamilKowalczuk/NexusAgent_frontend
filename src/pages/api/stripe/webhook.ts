@@ -3,11 +3,6 @@ import Stripe from 'stripe';
 
 export const prerender = false;
 
-function mapPlan(emailsPerDay: number): string {
-  if (emailsPerDay >= 60) return 'enterprise';
-  if (emailsPerDay >= 40) return 'pro';
-  return 'starter';
-}
 
 export const POST: APIRoute = async ({ request }) => {
   const stripeKey = import.meta.env.STRIPE_SECRET_KEY;
@@ -57,7 +52,6 @@ export const POST: APIRoute = async ({ request }) => {
         stripeSubscriptionID: subscriptionId,
         stripeCustomerID: session.customer as string,
         emailsPerDay,
-        plan: mapPlan(emailsPerDay),
         status: 'active',
         monthlyAmount: priceInPLN,
       };

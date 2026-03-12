@@ -134,18 +134,28 @@
 
         <!-- Plan summary -->
         <div class="glass rounded-2xl p-6 border border-white/5 text-left mb-10">
-          <div class="flex justify-between items-center text-xs font-mono uppercase text-slate-500 mb-4 tracking-widest">
-            <span>Twój plan</span>
-            <span class="text-green-400">Aktywny</span>
+          <div class="flex justify-between items-center text-xs font-mono uppercase text-slate-500 mb-5 tracking-widest">
+            <span>Twoja subskrypcja</span>
+            <span class="text-green-400 flex items-center gap-1.5">
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+              Aktywna
+            </span>
           </div>
-          <div class="flex justify-between items-end">
-            <div>
-              <div class="text-white font-bold">{emailsPerDay} maili / dzień</div>
-              <div class="text-slate-500 text-xs mt-1">24/7 praca systemu – bez L4 i urlopów</div>
+          <div class="flex justify-between items-end gap-4">
+            <div class="space-y-3">
+              <div>
+                <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Dzienna wysyłka</div>
+                <div class="text-2xl font-display font-bold text-white">{emailsPerDay} <span class="text-slate-400 text-base font-normal">maili / dzień</span></div>
+              </div>
+              <div>
+                <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Miesięczny wolumen</div>
+                <div class="text-white font-mono text-sm">{(emailsPerDay * 30).toLocaleString('pl-PL')} maili / miesiąc</div>
+              </div>
             </div>
-            <div class="text-right">
-              <div class="text-3xl font-display font-bold text-primary">{priceInPLN.toLocaleString('pl-PL')} zł</div>
-              <div class="text-slate-500 text-xs mt-1">/ miesiąc</div>
+            <div class="text-right shrink-0">
+              <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Koszt systemu</div>
+              <div class="text-4xl font-display font-bold text-primary">{priceInPLN.toLocaleString('pl-PL')} zł</div>
+              <div class="text-slate-500 text-xs mt-1 font-mono">/ miesiąc · bez prowizji</div>
             </div>
           </div>
         </div>
