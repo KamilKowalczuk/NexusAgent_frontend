@@ -20,33 +20,86 @@
   const MAX_USAGE = 4;
   let usageCount = $state<number>(0);
   let isLocked = $state<boolean>(false);
+  let isPageLoad = true; // flaga, żeby odróżnić odświeżenie strony od kliknięcia
 
   // Initialize from localStorage on mount (check for browser environment)
   $effect(() => {
     if (typeof window !== "undefined") {
+      // 1. Optimistic UI from localStorage
       const stored = localStorage.getItem("nexus_agent_demo_limits");
       if (stored) {
-        usageCount = parseInt(stored, 10);
-        if (usageCount >= MAX_USAGE) {
-          isLocked = true;
-        }
+        const storedCount = parseInt(stored, 10);
+        usageCount = storedCount;
       }
+
+      // 2. Fetch real status from server ONLY on initial mount
+      const hasCheckedServer = sessionStorage.getItem("nexus_demo_checked");
+      if (!hasCheckedServer || usageCount >= MAX_USAGE) {
+        fetch('/api/demo-status')
+          .then(res => res.json())
+          .then(data => {
+            if (data && typeof data.usageCount === 'number') {
+              // Serwer nadpisuje TYLKO jeśli ma wyższą wartość niż local
+              // LUB jeśli serwer mówi, że IP jest zablokowane (admin mógł zmienić)
+              if (data.isLocked) {
+                isLocked = true;
+                usageCount = Math.max(usageCount, data.usageCount);
+              } else if (data.usageCount > usageCount) {
+                usageCount = data.usageCount;
+              } else {
+                isLocked = false;
+              }
+              localStorage.setItem("nexus_agent_demo_limits", usageCount.toString());
+              sessionStorage.setItem("nexus_demo_checked", "true");
+            }
+          })
+          .catch(err => console.error('Failed to fetch demo status:', err))
+          .finally(() => {
+            isPageLoad = false;
+          });
+      } else {
+        isPageLoad = false;
+      }
+    }
+  });
+
+  // Osobny $effect: Jedyny mechanizm odpowiedzialny za opóźniony popup po 4. użyciu.
+  // Odpala się TYLKO gdy usageCount zmieni się na >= MAX_USAGE i NIE jest to ładowanie strony.
+  $effect(() => {
+    if (usageCount >= MAX_USAGE && !isLocked && !isPageLoad) {
+      const timer = setTimeout(() => {
+        isLocked = true;
+      }, 7000);
+
+      return () => clearTimeout(timer);
     }
   });
 
   // URL Validator mapping HTTP/HTTPS optionally, demanding domain format
   const isValidUrl = () => {
     if (!targetUrl) return false;
-    const pattern = new RegExp(
-      "^(https?:\\/\\/)?" + // protocol
-        "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name
-        "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
-        "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
-        "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
-        "(\\#[-a-z\\d_]*)?$",
-      "i",
-    ); // fragment locator
-    return !!pattern.test(targetUrl);
+    
+    // Ulepszona walidacja URL z użyciem wbudowanego obiektu URL w JS
+    try {
+      // Jeśli użytkownik wpisał samą domenę (np. "firma.pl"), dodajemy protokół, 
+      // żeby konstruktor URL zadziałał poprawnie
+      const urlToTest = targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`;
+      const parsedUrl = new URL(urlToTest);
+      
+      // Sprawdzamy czy domena ma kropkę i przynajmniej 2 znaki po kropce (np. .pl, .com)
+      const domainParts = parsedUrl.hostname.split('.');
+      if (domainParts.length < 2) return false;
+      
+      const tld = domainParts[domainParts.length - 1];
+      if (tld.length < 2) return false;
+      
+      // Odrzucamy localhost i lokalne IP
+      if (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1') return false;
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
   };
 
   let terminalLines = $state<string[]>([
@@ -82,7 +135,27 @@
       }
     },
     onError: (err) => {
-      terminalLines = [...terminalLines, `[ERROR] API Error: ${err.message}`];
+      // Sprawdzamy czy błąd to 429, 403 lub czy w treści błędu jest informacja o blokadzie
+      if (err.message.includes('429') || err.message.includes('Too Many Requests') || err.message.includes('403') || err.message.includes('IP is blocked')) {
+        // Ustawiamy na MAX_USAGE + 1, żeby UI wiedziało że koniec
+        usageCount = MAX_USAGE + 1; 
+        localStorage.setItem("nexus_agent_demo_limits", usageCount.toString());
+        sessionStorage.removeItem("nexus_demo_checked");
+        
+        terminalLines = [
+          ...terminalLines,
+          `[SYSTEM ALERT] LIMIT DEMO WYCZERPANY LUB DOSTĘP ZABLOKOWANY.`,
+          `> Przeanalizowano 4 profile. Szacunkowy potencjał przychodu: 40 000 – 160 000 PLN.`,
+          `> Dostęp do pełnej mocy obliczeniowej NEXUS został odłączony.`,
+        ];
+
+        isLocked = true;
+      } else {
+        // Revert optimistic update on error (tylko dla prawdziwych błędów, nie dla blokad)
+        usageCount = Math.max(0, usageCount - 1);
+        localStorage.setItem("nexus_agent_demo_limits", usageCount.toString());
+        terminalLines = [...terminalLines, `[ERROR] API Error: ${err.message}`];
+      }
     },
   });
 
@@ -112,12 +185,14 @@
       domain = targetUrl;
     }
 
-    // Increment usage
+    // Increment usage (Optimistic UI)
     usageCount += 1;
     localStorage.setItem("nexus_agent_demo_limits", usageCount.toString());
-
-    if (usageCount >= MAX_USAGE) {
-      isLocked = true;
+    
+    // Jeśli to jest 5 użycie (usageCount > 4), blokujemy natychmiast bez wysyłania do API.
+    if (usageCount > MAX_USAGE) {
+      // Wymuszamy wyczyszczenie sessionStorage, żeby przy następnym odświeżeniu zapytał serwer
+      sessionStorage.removeItem("nexus_demo_checked");
       terminalLines = [
         ...terminalLines,
         `[SYSTEM ALERT] LIMIT DEMO WYCZERPANY.`,
@@ -125,7 +200,15 @@
         `> Dostęp do pełnej mocy obliczeniowej NEXUS został odłączony.`,
         `> Każdy kolejny dzień bez systemowego outboundu powiększa tę lukę po stronie Twojej konkurencji.`,
       ];
+      
+      isLocked = true;
       return;
+    }
+
+    // Jeśli to jest 4 użycie (ostatnie), czyścimy sessionStorage, żeby przy odświeżeniu
+    // skrypt na 100% zapytał serwera i dostał isBlocked: true
+    if (usageCount === MAX_USAGE) {
+      sessionStorage.removeItem("nexus_demo_checked");
     }
 
     terminalLines = [
@@ -175,7 +258,7 @@
       {@html headline}
     </h2>
     <div class="space-y-8">
-      <div class="space-y-2">
+      <div class="space-y-2 relative pb-5">
         <label
           for="demo-url"
           class="font-mono text-[11px] uppercase text-slate-500 tracking-widest flex justify-between"
@@ -187,13 +270,16 @@
         <input
           id="demo-url"
           bind:value={targetUrl}
-          class="w-full bg-black/40 border border-slate-800 rounded-xl p-5 font-mono text-primary focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all duration-300 placeholder:text-slate-700"
+          class="w-full bg-black/40 border border-slate-800 rounded-xl p-5 font-mono text-primary focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all duration-300 placeholder:text-slate-700 {targetUrl && !isValidUrl() ? 'border-red-500/50 text-red-400 focus:border-red-500 focus:ring-red-500/20' : ''}"
           placeholder="https://competitor.pl"
-          type="text"
+          type="url"
           autocomplete="off"
           maxlength="100"
           disabled={generator.loading}
         />
+        <div class="absolute bottom-0 left-0 text-red-400 text-[10px] font-mono uppercase tracking-widest transition-opacity duration-300 {targetUrl && !isValidUrl() ? 'opacity-100' : 'opacity-0 pointer-events-none'}">
+          Wymagany poprawny adres domeny (np. firma.pl)
+        </div>
       </div>
       <div class="space-y-2">
         <label
@@ -214,10 +300,12 @@
       </div>
       <button
         onclick={startAttack}
-        disabled={generator.loading || !targetUrl || isLocked || !isValidUrl()}
+        disabled={generator.loading || !targetUrl || isLocked || !isValidUrl() || usageCount >= MAX_USAGE}
         class="w-full font-display font-bold text-sm uppercase px-8 py-6 rounded-xl transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] flex items-center justify-center gap-4 bg-primary text-bg-dark neon-shadow-cyan hover:brightness-110"
       >
-        {#if generator.loading}
+        {#if usageCount >= MAX_USAGE}
+          LIMIT WYCZERPANY <span class="material-symbols-outlined">lock</span>
+        {:else if generator.loading}
           System Pracuje... <span class="material-symbols-outlined animate-spin"
             >sync</span
           >

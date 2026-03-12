@@ -3,11 +3,18 @@ import Stripe from 'stripe';
 
 export const prerender = false;
 
+function mapPlan(emailsPerDay: number): string {
+  if (emailsPerDay >= 60) return 'enterprise';
+  if (emailsPerDay >= 40) return 'pro';
+  return 'starter';
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const stripeKey = import.meta.env.STRIPE_SECRET_KEY;
   const webhookSecret = import.meta.env.STRIPE_WEBHOOK_SECRET;
 
   if (!stripeKey || !webhookSecret) {
+    console.error('[Stripe Webhook] Brak STRIPE_SECRET_KEY lub STRIPE_WEBHOOK_SECRET');
     return new Response('Stripe nie skonfigurowany', { status: 503 });
   }
 
@@ -25,16 +32,18 @@ export const POST: APIRoute = async ({ request }) => {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error('[Stripe Webhook] Błąd weryfikacji podpisu:', err.message);
+    console.error('[Stripe Webhook] Upewnij się, że STRIPE_WEBHOOK_SECRET zaczyna się od whsec_');
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
   console.log(`[Stripe Webhook] Zdarzenie: ${event.type}`);
+  const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
 
-    const emailsPerDay = session.metadata?.emailsPerDay;
-    const priceInPLN = session.metadata?.priceInPLN;
+    const emailsPerDay = parseInt(session.metadata?.emailsPerDay || '20');
+    const priceInPLN = parseInt(session.metadata?.priceInPLN || '1999');
     const customerEmail = session.customer_details?.email;
     const subscriptionId = session.subscription as string;
 
@@ -42,40 +51,40 @@ export const POST: APIRoute = async ({ request }) => {
     console.log(`[Stripe Webhook] Plan: ${emailsPerDay} maili/dzień, ${priceInPLN} PLN/mc`);
     console.log(`[Stripe Webhook] Subscription ID: ${subscriptionId}`);
 
-    // Zapisz zamówienie do Payload CMS
     try {
-      const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
-      const payloadApiKey = import.meta.env.PAYLOAD_API_KEY;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (payloadApiKey) headers['Authorization'] = `users API-Key ${payloadApiKey}`;
+      const orderPayload = {
+        clientEmail: customerEmail,
+        stripeSubscriptionID: subscriptionId,
+        stripeCustomerID: session.customer as string,
+        emailsPerDay,
+        plan: mapPlan(emailsPerDay),
+        status: 'active',
+        monthlyAmount: priceInPLN,
+      };
 
-      // 1. Save order
       const orderRes = await fetch(`${payloadUrl}/api/orders`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({
-          clientEmail: customerEmail,
-          stripeSubscriptionID: subscriptionId,
-          stripeCustomerID: session.customer as string,
-          plan: 'starter', // default — could be mapped from emailsPerDay
-          status: 'active',
-          monthlyAmount: parseInt(priceInPLN || '1999'),
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
       });
+
       if (orderRes.ok) {
-        console.log('[Stripe Webhook] Zamówienie zapisane do Payload CMS ✓');
+        console.log('[Stripe Webhook] Zamówienie zapisane do Payload CMS');
       } else {
-        console.warn('[Stripe Webhook] Błąd zapisu zamówienia:', await orderRes.text());
+        const errText = await orderRes.text();
+        console.error(`[Stripe Webhook] Błąd zapisu zamówienia (${orderRes.status}):`, errText);
       }
 
-      // 2. Increment usedSlots in LandingPage global
-      const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, { headers });
+      const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
       if (globalRes.ok) {
         const globalData = await globalRes.json();
         const currentUsed = globalData?.slots?.usedSlots ?? 0;
         const patchRes = await fetch(`${payloadUrl}/api/globals/landing-page`, {
           method: 'POST',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             slots: {
               totalSlots: globalData?.slots?.totalSlots ?? 10,
@@ -83,8 +92,9 @@ export const POST: APIRoute = async ({ request }) => {
             },
           }),
         });
+
         if (patchRes.ok) {
-          console.log(`[Stripe Webhook] Sloty zaktualizowane: ${currentUsed} → ${currentUsed + 1} ✓`);
+          console.log(`[Stripe Webhook] Sloty: ${currentUsed} → ${currentUsed + 1}`);
         } else {
           console.warn('[Stripe Webhook] Błąd aktualizacji slotów:', await patchRes.text());
         }
@@ -97,7 +107,28 @@ export const POST: APIRoute = async ({ request }) => {
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object as Stripe.Subscription;
     console.log(`[Stripe Webhook] Subskrypcja anulowana: ${subscription.id}`);
-    // Tu można zaktualizować status w Payload CMS na 'cancelled'
+
+    try {
+      const searchRes = await fetch(
+        `${payloadUrl}/api/orders?where[stripeSubscriptionID][equals]=${subscription.id}&limit=1`,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        if (searchData.docs?.length > 0) {
+          const orderId = searchData.docs[0].id;
+          await fetch(`${payloadUrl}/api/orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'canceled' }),
+          });
+          console.log(`[Stripe Webhook] Zamówienie ${orderId} oznaczone jako anulowane`);
+        }
+      }
+    } catch (e) {
+      console.error('[Stripe Webhook] Błąd aktualizacji anulowanej subskrypcji:', e);
+    }
   }
 
   return new Response(JSON.stringify({ received: true }), {

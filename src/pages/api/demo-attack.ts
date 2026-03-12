@@ -8,8 +8,88 @@ const google = createGoogleGenerativeAI({
   apiKey: import.meta.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '',
 });
 
+const PAYLOAD_URL = import.meta.env.PAYLOAD_URL || process.env.PAYLOAD_URL || 'http://localhost:3000';
+const PAYLOAD_API_KEY = import.meta.env.PAYLOAD_API_KEY || process.env.PAYLOAD_API_KEY || '';
+
 export const POST: APIRoute = async ({ request }) => {
   try {
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '127.0.0.1';
+    
+    // 1. Check Rate Limit
+    let currentUsage = 0;
+    let docId = null;
+    
+    if (true) { // Zmienione z if (PAYLOAD_API_KEY) na true, bo zdjęliśmy wymóg klucza dla tej kolekcji
+      const limitRes = await fetch(`${PAYLOAD_URL}/api/demo-limits?where[ipAddress][equals]=${encodeURIComponent(ip)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (limitRes.ok) {
+        const data = await limitRes.json();
+        if (data.docs && data.docs.length > 0) {
+          const doc = data.docs[0];
+          currentUsage = doc.usageCount;
+          docId = doc.id;
+          
+          if (doc.isBlocked) {
+            return new Response(JSON.stringify({ error: 'IP is blocked' }), { status: 403 });
+          }
+        }
+      }
+    }
+
+    if (currentUsage >= 4) {
+      // Zaktualizuj status na zablokowany, jeśli osiągnięto limit
+      if (docId) {
+        await fetch(`${PAYLOAD_URL}/api/demo-limits/${docId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            isBlocked: true
+          })
+        });
+      }
+      return new Response(JSON.stringify({ error: 'Too Many Requests' }), { status: 429 });
+    }
+
+    // 2. Increment Rate Limit (ONLY IF NOT BLOCKED)
+    if (true) {
+      const newUsageCount = currentUsage + 1;
+      const shouldBlock = newUsageCount >= 4;
+      
+      if (docId) {
+        await fetch(`${PAYLOAD_URL}/api/demo-limits/${docId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            usageCount: newUsageCount,
+            lastUsedAt: new Date().toISOString(),
+            isBlocked: shouldBlock
+          })
+        });
+      } else {
+        await fetch(`${PAYLOAD_URL}/api/demo-limits`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ipAddress: ip,
+            usageCount: 1,
+            lastUsedAt: new Date().toISOString(),
+            isBlocked: false
+          })
+        });
+      }
+    }
+
     const body = await request.json();
     console.log('[API Demo] Received body:', body);
 

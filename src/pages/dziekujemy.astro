@@ -1,11 +1,10 @@
 ---
+export const prerender = false;
+
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-
-const emailsParam = Astro.url.searchParams.get('emails') || '20';
-const emails = Math.max(10, Math.min(100, parseInt(emailsParam)));
-const price = 1999 + Math.max(0, emails - 20) * 25;
+import ThankYouCard from '../components/ThankYouCard.svelte';
 ---
 
 <Layout
@@ -23,83 +22,8 @@ const price = 1999 + Math.max(0, emails - 20) * 25;
     <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-green-500/5 blur-[180px] rounded-full pointer-events-none"></div>
     <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-primary/5 blur-[150px] rounded-full pointer-events-none"></div>
 
-    <!-- Success card -->
-    <div class="max-w-2xl w-full relative z-10">
-      <div class="rounded-3xl p-[1px] bg-gradient-to-b from-green-500/50 to-green-900/10 mb-12">
-        <div class="bg-black/90 rounded-3xl p-12 md:p-16">
+    <ThankYouCard client:only="svelte" />
 
-          <!-- Pulsing dot -->
-          <span class="relative flex h-6 w-6 mx-auto mb-10">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-6 w-6 bg-green-500 shadow-[0_0_20px_#22c55e]"></span>
-          </span>
-
-          <div class="inline-block px-4 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full text-[10px] font-mono text-green-400 uppercase tracking-widest mb-6">
-            System aktywny
-          </div>
-
-          <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-tighter text-white mb-6">
-            NEXUS Agent<br />
-            <span class="text-green-400">System sprzedaży uruchomiony</span>
-          </h1>
-
-          <p class="text-slate-400 text-sm leading-relaxed mb-10 max-w-md mx-auto">
-            Subskrypcja jest aktywna. W ciągu
-            <strong class="text-white">24 godzin</strong> otrzymasz link do technicznego briefu.
-            Po jego wypełnieniu NEXUS przejmuje kontrolę, a Ty czekasz na gotowe leady.
-          </p>
-
-          <!-- Plan summary -->
-          <div class="glass rounded-2xl p-6 border border-white/5 text-left mb-10">
-            <div class="flex justify-between items-center text-xs font-mono uppercase text-slate-500 mb-4 tracking-widest">
-              <span>Twój plan</span>
-              <span class="text-green-400">Aktywny</span>
-            </div>
-            <div class="flex justify-between items-end">
-              <div>
-                <div class="text-white font-bold">{emails} maili / dzień</div>
-              <div class="text-slate-500 text-xs mt-1">24/7 praca systemu – bez L4 i urlopów</div>
-              </div>
-              <div class="text-right">
-                <div class="text-3xl font-display font-bold text-primary">{price.toLocaleString('pl-PL')} zł</div>
-                <div class="text-slate-500 text-xs mt-1">/ miesiąc</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Next steps -->
-          <div class="space-y-3 text-left mb-10">
-            {[
-              'Autoryzacja (Natychmiast) - Otrzymujesz na maila potwierdzenie subskrypcji oraz informację o limicie.',
-              'Kalibracja Celu (do 24h) - Dostajesz link do technicznego briefu (max 15 minut).',
-              'Inicjalizacja Agenta (24-48h) - NEXUS skanuje rynek i buduje bazę firm z Twojej branży.',
-              'Uderzenie (od 48h) - Agent rozpoczyna pracę i generuje hiper-spersonalizowane wiadomości.',
-              'Raportowanie (Co 3 dni) - Otrzymujesz twarde dane na maila. Ty wkraczasz do akcji tylko przy odpowiedzi od klienta.',
-            ].map((step, i) => (
-              <div class="flex items-center gap-4">
-                <div class="size-6 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
-                  <span class="text-green-400 text-[10px] font-mono font-bold">{i + 1}</span>
-                </div>
-                <span class="text-slate-300 text-sm">{step}</span>
-              </div>
-            ))}
-          </div>
-
-          <a
-            href="/"
-            class="inline-flex items-center gap-3 border border-white/10 text-slate-400 font-mono uppercase text-[10px] tracking-widest px-8 py-4 rounded-full hover:border-primary/30 hover:text-primary transition-all duration-300"
-          >
-            <span class="material-symbols-outlined text-sm">arrow_back</span>
-            Wróć na stronę główną
-          </a>
-        </div>
-      </div>
-
-      <!-- Status bar -->
-      <div class="font-mono text-[9px] text-slate-600 uppercase tracking-widest">
-        STATUS SYSTEMU: AKTYWNY | NEXUS AGENT v2.4 | SLOT ZAREZERWOWANY ✓
-      </div>
-    </div>
   </main>
 
   <Footer />

@@ -1,0 +1,190 @@
+<script lang="ts">
+  let sessionId: string | null = null;
+  let isLoading = $state(true);
+  let isValid = $state(false);
+  let errorMsg = $state('');
+
+  let emailsPerDay = $state(20);
+  let priceInPLN = $state(1999);
+  let customerEmail = $state('');
+
+  $effect(() => {
+    const params = new URLSearchParams(window.location.search);
+    sessionId = params.get('session_id');
+
+    if (!sessionId) {
+      isLoading = false;
+      errorMsg = 'no_session';
+      return;
+    }
+
+    verifySession(sessionId);
+  });
+
+  async function verifySession(sid: string) {
+    try {
+      const res = await fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(sid)}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        isLoading = false;
+        errorMsg = data.error || 'invalid';
+        return;
+      }
+
+      emailsPerDay = data.emailsPerDay;
+      priceInPLN = data.priceInPLN;
+      customerEmail = data.customerEmail;
+      isValid = true;
+      isLoading = false;
+    } catch {
+      isLoading = false;
+      errorMsg = 'fetch_error';
+    }
+  }
+
+  const steps = [
+    'Autoryzacja (Natychmiast) – Otrzymujesz na maila potwierdzenie subskrypcji oraz informację o limicie.',
+    'Kalibracja Celu (do 24h) – Dostajesz link do technicznego briefu (max 15 minut).',
+    'Inicjalizacja Agenta (24-48h) – NEXUS skanuje rynek i buduje bazę firm z Twojej branży.',
+    'Uderzenie (od 48h) – Agent rozpoczyna pracę i generuje hiper-spersonalizowane wiadomości.',
+    'Raportowanie (Co 3 dni) – Otrzymujesz twarde dane na maila. Ty wkraczasz do akcji tylko przy odpowiedzi od klienta.',
+  ];
+</script>
+
+{#if isLoading}
+  <!-- Loading state -->
+  <div class="max-w-2xl w-full relative z-10">
+    <div class="rounded-3xl p-[1px] bg-gradient-to-b from-primary/50 to-primary/10">
+      <div class="bg-black/90 rounded-3xl p-12 md:p-16 flex flex-col items-center">
+        <span class="material-symbols-outlined text-4xl text-primary animate-spin mb-6">sync</span>
+        <p class="font-mono text-sm text-slate-400 uppercase tracking-widest">Weryfikacja płatności...</p>
+      </div>
+    </div>
+  </div>
+
+{:else if errorMsg}
+  <!-- No valid session / error -->
+  <div class="max-w-2xl w-full relative z-10">
+    <div class="rounded-3xl p-[1px] bg-gradient-to-b from-red-500/50 to-red-900/10">
+      <div class="bg-black/90 rounded-3xl p-12 md:p-16 text-center">
+        <span class="material-symbols-outlined text-5xl text-red-400 mb-6">block</span>
+
+        {#if errorMsg === 'no_session'}
+          <h1 class="font-display text-3xl md:text-4xl font-bold uppercase tracking-tighter text-white mb-4">
+            Brak aktywnej sesji
+          </h1>
+          <p class="text-slate-400 text-sm leading-relaxed mb-8 max-w-md mx-auto">
+            Ta strona jest dostępna wyłącznie po dokonaniu płatności przez system Stripe.
+            Jeśli dokonałeś zakupu i widzisz ten komunikat, skontaktuj się z nami.
+          </p>
+        {:else if errorMsg === 'Płatność nie została potwierdzona'}
+          <h1 class="font-display text-3xl md:text-4xl font-bold uppercase tracking-tighter text-white mb-4">
+            Płatność w trakcie
+          </h1>
+          <p class="text-slate-400 text-sm leading-relaxed mb-8 max-w-md mx-auto">
+            Twoja płatność nie została jeszcze potwierdzona. Poczekaj chwilę i odśwież stronę.
+          </p>
+        {:else}
+          <h1 class="font-display text-3xl md:text-4xl font-bold uppercase tracking-tighter text-white mb-4">
+            Nieprawidłowa sesja
+          </h1>
+          <p class="text-slate-400 text-sm leading-relaxed mb-8 max-w-md mx-auto">
+            Nie udało się zweryfikować Twojej płatności. Spróbuj ponownie lub skontaktuj się z nami.
+          </p>
+        {/if}
+
+        <a
+          href="/"
+          class="inline-flex items-center gap-3 border border-white/10 text-slate-400 font-mono uppercase text-[10px] tracking-widest px-8 py-4 rounded-full hover:border-primary/30 hover:text-primary transition-all duration-300"
+        >
+          <span class="material-symbols-outlined text-sm">arrow_back</span>
+          Wróć na stronę główną
+        </a>
+      </div>
+    </div>
+  </div>
+
+{:else if isValid}
+  <!-- Success state -->
+  <div class="max-w-2xl w-full relative z-10">
+    <div class="rounded-3xl p-[1px] bg-gradient-to-b from-green-500/50 to-green-900/10 mb-12">
+      <div class="bg-black/90 rounded-3xl p-12 md:p-16">
+
+        <!-- Pulsing dot -->
+        <span class="relative flex h-6 w-6 mx-auto mb-10">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-6 w-6 bg-green-500 shadow-[0_0_20px_#22c55e]"></span>
+        </span>
+
+        <div class="inline-block px-4 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full text-[10px] font-mono text-green-400 uppercase tracking-widest mb-6">
+          System aktywny
+        </div>
+
+        <h1 class="font-display text-4xl md:text-5xl font-bold uppercase tracking-tighter text-white mb-6">
+          NEXUS Agent<br />
+          <span class="text-green-400">System sprzedaży uruchomiony</span>
+        </h1>
+
+        <p class="text-slate-400 text-sm leading-relaxed mb-10 max-w-md mx-auto">
+          Subskrypcja jest aktywna. W ciągu
+          <strong class="text-white">24 godzin</strong> otrzymasz link do technicznego briefu.
+          Po jego wypełnieniu NEXUS przejmuje kontrolę, a Ty czekasz na gotowe leady.
+        </p>
+
+        <!-- Plan summary -->
+        <div class="glass rounded-2xl p-6 border border-white/5 text-left mb-10">
+          <div class="flex justify-between items-center text-xs font-mono uppercase text-slate-500 mb-4 tracking-widest">
+            <span>Twój plan</span>
+            <span class="text-green-400">Aktywny</span>
+          </div>
+          <div class="flex justify-between items-end">
+            <div>
+              <div class="text-white font-bold">{emailsPerDay} maili / dzień</div>
+              <div class="text-slate-500 text-xs mt-1">24/7 praca systemu – bez L4 i urlopów</div>
+            </div>
+            <div class="text-right">
+              <div class="text-3xl font-display font-bold text-primary">{priceInPLN.toLocaleString('pl-PL')} zł</div>
+              <div class="text-slate-500 text-xs mt-1">/ miesiąc</div>
+            </div>
+          </div>
+        </div>
+
+        {#if customerEmail}
+          <div class="glass rounded-xl p-4 border border-white/5 text-left mb-10 flex items-center gap-3">
+            <span class="material-symbols-outlined text-green-400 text-lg">mail</span>
+            <div>
+              <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Potwierdzenie wysłane na</div>
+              <div class="text-white text-sm font-mono">{customerEmail}</div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Next steps -->
+        <div class="space-y-3 text-left mb-10">
+          {#each steps as step, i}
+            <div class="flex items-center gap-4">
+              <div class="size-6 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
+                <span class="text-green-400 text-[10px] font-mono font-bold">{i + 1}</span>
+              </div>
+              <span class="text-slate-300 text-sm">{step}</span>
+            </div>
+          {/each}
+        </div>
+
+        <a
+          href="/"
+          class="inline-flex items-center gap-3 border border-white/10 text-slate-400 font-mono uppercase text-[10px] tracking-widest px-8 py-4 rounded-full hover:border-primary/30 hover:text-primary transition-all duration-300"
+        >
+          <span class="material-symbols-outlined text-sm">arrow_back</span>
+          Wróć na stronę główną
+        </a>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="font-mono text-[9px] text-slate-600 uppercase tracking-widest text-center">
+      STATUS SYSTEMU: AKTYWNY | NEXUS AGENT v2.4 | SLOT ZAREZERWOWANY ✓
+    </div>
+  </div>
+{/if}
