@@ -58,7 +58,7 @@ export const GET: APIRoute = async ({ url }) => {
 
     // TRYB 2: Edycja istniejącego briefu
     const editRes = await fetch(
-      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=2`,
+      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
       { headers: { 'Content-Type': 'application/json' } }
     );
 
@@ -76,12 +76,28 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     const order = editData.docs[0];
+    const rawBrief = order.brief;
+    const briefId = typeof rawBrief === 'object' ? rawBrief?.id : rawBrief;
 
-    if (!order.brief) {
+    if (!briefId) {
       return new Response(JSON.stringify({ valid: false, error: 'Ten link nie ma jeszcze podpiętego briefu do edycji.' }), {
         status: 409, headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    // Briefs ma read: !!user – pobieramy przez API key
+    const apiKey = import.meta.env.PAYLOAD_API_KEY;
+    const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
+
+    const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, { headers: authHeaders });
+    if (!briefRes.ok) {
+      console.error('[verify-token] Nie udało się pobrać briefu:', briefRes.status, await briefRes.text());
+      return new Response(JSON.stringify({ valid: false, error: 'Nie udało się wczytać danych briefu.' }), {
+        status: 500, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const brief = await briefRes.json();
 
     return new Response(JSON.stringify({
       valid: true,
@@ -90,8 +106,8 @@ export const GET: APIRoute = async ({ url }) => {
       customerEmail: order.customerEmail,
       dailyLimit: order.dailyLimit,
       monthlyAmount: order.monthlyAmount,
-      briefId: typeof order.brief === 'object' ? order.brief.id : order.brief,
-      brief: order.brief,
+      briefId,
+      brief: brief.doc ?? brief,
     }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });

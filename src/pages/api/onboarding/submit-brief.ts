@@ -119,17 +119,20 @@ export const POST: APIRoute = async ({ request }) => {
   const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
   const resendKey = import.meta.env.RESEND_API_KEY;
   const siteUrl = import.meta.env.SITE_URL || 'https://nexusagent.pl';
+  const apiKey = import.meta.env.PAYLOAD_API_KEY;
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
 
   try {
     // Zweryfikuj token – ostatni raz
     const tokenField = mode === 'edit' ? 'editToken' : 'onboardingToken';
     const orderCheckRes = await fetch(
       `${payloadUrl}/api/orders?where[${tokenField}][equals]=${encodeURIComponent(token)}&limit=1`,
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: authHeaders }
     );
     const orderCheck = await orderCheckRes.json();
 
-    if (!orderCheck.docs?.length || orderCheck.docs[0].id !== orderId) {
+    if (!orderCheck.docs?.length || String(orderCheck.docs[0].id) !== String(orderId)) {
       return new Response(JSON.stringify({ error: 'Nieprawidłowy token lub zamówienie' }), {
         status: 403, headers: { 'Content-Type': 'application/json' },
       });
@@ -140,13 +143,13 @@ export const POST: APIRoute = async ({ request }) => {
     let briefId = existingBriefId as string | undefined;
 
     // Sanityzacja briefData – usuń pola które mogą zepsuć zapis
-    const sanitized = { ...briefData };
-    delete (sanitized as Record<string, unknown>).id;
-    delete (sanitized as Record<string, unknown>).createdAt;
-    delete (sanitized as Record<string, unknown>).updatedAt;
+    const sanitized = { ...briefData } as Record<string, unknown>;
+    delete sanitized.id;
+    delete sanitized.createdAt;
+    delete sanitized.updatedAt;
     const placeholder = '[ZASZYFROWANE PRZEZ GOOGLE KMS]';
-    if (sanitized.imapPassword === placeholder || !sanitized.imapPassword?.trim()) {
-      delete (sanitized as Record<string, unknown>).imapPassword;
+    if (sanitized.imapPassword === placeholder || !String(sanitized.imapPassword || '').trim()) {
+      delete sanitized.imapPassword;
     }
 
     // Tryb edycji – aktualizujemy istniejący brief
@@ -159,7 +162,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       const patchBriefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify(sanitized),
       });
 
@@ -185,7 +188,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       const briefRes = await fetch(`${payloadUrl}/api/briefs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify(sanitized),
       });
 

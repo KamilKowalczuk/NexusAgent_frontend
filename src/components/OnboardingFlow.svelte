@@ -69,9 +69,9 @@
         dailyLimit = data.dailyLimit;
         monthlyAmount = data.monthlyAmount;
         emailInput = data.customerEmail;
-        if (data.mode === 'edit' && data.brief) {
+        if (data.mode === 'edit' && data.brief && typeof data.brief === 'object') {
           mode = 'edit';
-          briefId = data.briefId || null;
+          briefId = data.briefId ?? data.brief?.id ?? null;
           const b = data.brief;
           brief = {
             companyName: b.companyName ?? '',
