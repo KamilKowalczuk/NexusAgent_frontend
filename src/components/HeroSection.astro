@@ -27,8 +27,7 @@ const secondaryText = data?.secondaryText || "Zobacz architekturę systemu";
 ---
 
 <section
-  class="flex flex-col items-center justify-center px-4 text-center max-w-5xl mx-auto relative"
-  style="min-height: calc(100dvh - 7rem); height: calc(100dvh - 7rem);"
+  class="flex flex-col items-center justify-center px-4 pt-24 pb-20 text-center max-w-5xl mx-auto relative min-h-[calc(100dvh-7rem)]"
 >
   <!-- Ambient floating orbs – no clipping, bleed freely -->
   <div
@@ -53,7 +52,7 @@ const secondaryText = data?.secondaryText || "Zobacz architekturę systemu";
   </div>
 
   <h1
-    class="font-display text-6xl md:text-9xl font-bold leading-[0.9] tracking-tight mb-8 hero-fade-up"
+    class="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl 2xl:text-9xl font-bold leading-[0.9] tracking-tight mb-8 hero-fade-up"
   >
     {headlineFirstLine}<br />
     <span class="text-primary italic hero-glitch" data-text={headlineGlitch}

@@ -32,10 +32,9 @@
     <div class="rounded-3xl p-[1px] bg-gradient-to-b from-red-500/30 to-red-900/5">
       <div class="bg-black/90 rounded-3xl p-12 md:p-16 text-center">
 
-        <span class="material-symbols-outlined text-5xl text-red-400/60 mb-6 block">lock</span>
-
-        <div class="inline-block px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full text-[10px] font-mono text-red-400/70 uppercase tracking-widest mb-6">
-          Dostęp ograniczony
+        <div class="inline-flex items-center justify-center gap-3 px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full text-[10px] font-mono text-red-400/70 uppercase tracking-widest mb-6">
+          <span class="material-symbols-outlined text-3xl text-red-400/80">lock</span>
+          <span>Dostęp ograniczony</span>
         </div>
 
         <h1 class="font-display text-3xl md:text-4xl font-bold uppercase tracking-tighter text-white mb-4">
