@@ -56,10 +56,22 @@ export const GET: APIRoute = async ({ url }) => {
       });
     }
 
-    // TRYB 2: Edycja istniejącego briefu
+    // TRYB 2: Edycja istniejącego briefu – API key wymagany (Briefs read: !!user)
+    const apiKey = import.meta.env.PAYLOAD_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ valid: false, error: 'Konfiguracja serwera: brak PAYLOAD_API_KEY.' }), {
+        status: 500, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `users API-Key ${apiKey}`,
+    };
+
     const editRes = await fetch(
-      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
-      { headers: { 'Content-Type': 'application/json' } }
+      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=2`,
+      { headers: authHeaders }
     );
 
     if (!editRes.ok) {
@@ -85,19 +97,15 @@ export const GET: APIRoute = async ({ url }) => {
       });
     }
 
-    // Briefs ma read: !!user – pobieramy przez API key
-    const apiKey = import.meta.env.PAYLOAD_API_KEY;
-    const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
-
-    const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, { headers: authHeaders });
-    if (!briefRes.ok) {
-      console.error('[verify-token] Nie udało się pobrać briefu:', briefRes.status, await briefRes.text());
-      return new Response(JSON.stringify({ valid: false, error: 'Nie udało się wczytać danych briefu.' }), {
-        status: 500, headers: { 'Content-Type': 'application/json' },
-      });
+    // Z depth=2 i API key brief jest w order.brief; jeśli tylko ID – pobierz osobno
+    let briefData: Record<string, unknown> | null = typeof rawBrief === 'object' && rawBrief !== null ? rawBrief as Record<string, unknown> : null;
+    if (!briefData) {
+      const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, { headers: authHeaders });
+      if (briefRes.ok) {
+        const briefJson = await briefRes.json();
+        briefData = (briefJson.doc ?? briefJson) as Record<string, unknown>;
+      }
     }
-    const brief = await briefRes.json();
 
     return new Response(JSON.stringify({
       valid: true,
@@ -107,7 +115,7 @@ export const GET: APIRoute = async ({ url }) => {
       dailyLimit: order.dailyLimit,
       monthlyAmount: order.monthlyAmount,
       briefId,
-      brief: brief.doc ?? brief,
+      brief: briefData,
     }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
