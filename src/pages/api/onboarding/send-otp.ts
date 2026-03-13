@@ -35,6 +35,13 @@ export const POST: APIRoute = async ({ request }) => {
 
     const order = searchData.docs[0];
 
+    // Jeśli brief już istnieje, link powinien być martwy nawet gdy onboardingToken jeszcze jest w bazie
+    if (order.brief) {
+      return new Response(JSON.stringify({ error: 'Ten link został już wykorzystany. Brief jest zapisany.' }), {
+        status: 410, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // Czyścimy przestarzałe OTP (>24h) jeśli istnieje
     if (order.otpExpiry) {
       const otpTime = new Date(order.otpExpiry).getTime();
