@@ -38,6 +38,13 @@ function buildOnboardingEmail(params: {
           <!-- Header -->
           <tr>
             <td style="padding:32px 40px 24px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.06);">
+              <img
+                src="https://nexusagent.pl/logo.webp"
+                alt="NEXUS Agent"
+                width="120"
+                height="120"
+                style="display:block;margin:0 auto 12px auto;"
+              />
               <div style="font-family:monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#0ceaed;margin-bottom:8px;">NEXUS REVENUE PROTOCOL</div>
               <div style="font-size:28px;font-weight:900;text-transform:uppercase;letter-spacing:-0.02em;color:#fff;">NEXUS Agent</div>
             </td>
