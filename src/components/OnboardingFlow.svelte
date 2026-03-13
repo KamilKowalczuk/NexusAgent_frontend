@@ -53,10 +53,10 @@
     if (!token) { stage = 'invalid'; errorMsg = 'Brak tokenu w URL.'; return; }
 
     const url = new URL(window.location.href);
-    const m = url.searchParams.get('mode');
+    const m = url.searchParams.get('mode') || 'onboarding';
     if (m === 'edit') mode = 'edit';
 
-    fetch(`/api/onboarding/verify-token?token=${encodeURIComponent(token)}&mode=${mode}`)
+    fetch(`/api/onboarding/verify-token?token=${encodeURIComponent(token)}&mode=${m}`)
       .then(r => r.json())
       .then(data => {
         if (!data.valid) {
@@ -69,15 +69,32 @@
         dailyLimit = data.dailyLimit;
         monthlyAmount = data.monthlyAmount;
         emailInput = data.customerEmail;
-        if (data.mode === 'edit') {
+        if (data.mode === 'edit' && data.brief) {
           mode = 'edit';
           briefId = data.briefId || null;
-          if (data.brief) {
-            brief = {
-              ...brief,
-              ...data.brief,
-            };
-          }
+          const b = data.brief;
+          brief = {
+            companyName: b.companyName ?? '',
+            industry: b.industry ?? '',
+            senderName: b.senderName ?? '',
+            websiteUrl: b.websiteUrl ?? '',
+            actionMode: b.actionMode ?? 'save_to_drafts',
+            campaignGoal: b.campaignGoal ?? '',
+            valueProposition: b.valueProposition ?? '',
+            idealCustomerProfile: b.idealCustomerProfile ?? '',
+            toneOfVoice: b.toneOfVoice ?? 'professional',
+            negativeConstraints: b.negativeConstraints ?? '',
+            caseStudies: b.caseStudies ?? '',
+            signatureHtml: b.signatureHtml ?? '',
+            autoGenerateSignature: !!b.autoGenerateSignature,
+            warmupStrategy: b.warmupStrategy !== false,
+            authMethod: b.authMethod ?? 'nexus_lookalike_domain',
+            requestedDomain: b.requestedDomain ?? '',
+            imapHost: b.imapHost ?? '',
+            imapPort: b.imapPort ?? '993',
+            imapUser: b.imapUser ?? '',
+            imapPassword: '', // Nigdy nie prefilluj – hasło jest zaszyfrowane w KMS
+          };
         }
         stage = 'otp-email';
       })
@@ -127,7 +144,10 @@
         body: JSON.stringify({ token, orderId, briefData: brief, briefId, mode }),
       });
       const data = await res.json();
-      if (!res.ok) { errorMsg = data.error || 'Błąd zapisu.'; return; }
+      if (!res.ok) {
+        errorMsg = data.details ? `${data.error}: ${data.details}` : (data.error || 'Błąd zapisu.');
+        return;
+      }
       stage = 'success';
     } catch { errorMsg = 'Błąd połączenia.'; }
     finally { submitting = false; }
@@ -501,7 +521,13 @@
                 <div>
                   <label for="imapPassword" class="block text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-2">Hasło IMAP</label>
                   <input id="imapPassword" type="password" bind:value={brief.imapPassword} class="input-field" placeholder="••••••••••" />
-                  <p class="text-slate-600 text-[10px] font-mono mt-1.5">🔐 Zaszyfrowane natychmiast przy zapisie przez GCP KMS</p>
+                  <p class="text-slate-600 text-[10px] font-mono mt-1.5">
+                    {#if mode === 'edit'}
+                      🔐 Puste = zachowaj obecne hasło. Wpisanie nowego nadpisze je (szyfrowanie GCP KMS).
+                    {:else}
+                      🔐 Zaszyfrowane natychmiast przy zapisie przez GCP KMS
+                    {/if}
+                  </p>
                 </div>
               </div>
             {/if}

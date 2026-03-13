@@ -58,7 +58,7 @@ export const GET: APIRoute = async ({ url }) => {
 
     // TRYB 2: Edycja istniejącego briefu
     const editRes = await fetch(
-      `${payloadUrl}/api/orders?where[editToken][equals]=${token}&limit=1&depth=2`,
+      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=2`,
       { headers: { 'Content-Type': 'application/json' } }
     );
 

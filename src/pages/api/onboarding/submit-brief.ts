@@ -139,6 +139,16 @@ export const POST: APIRoute = async ({ request }) => {
 
     let briefId = existingBriefId as string | undefined;
 
+    // Sanityzacja briefData – usuń pola które mogą zepsuć zapis
+    const sanitized = { ...briefData };
+    delete (sanitized as Record<string, unknown>).id;
+    delete (sanitized as Record<string, unknown>).createdAt;
+    delete (sanitized as Record<string, unknown>).updatedAt;
+    const placeholder = '[ZASZYFROWANE PRZEZ GOOGLE KMS]';
+    if (sanitized.imapPassword === placeholder || !sanitized.imapPassword?.trim()) {
+      delete (sanitized as Record<string, unknown>).imapPassword;
+    }
+
     // Tryb edycji – aktualizujemy istniejący brief
     if (mode === 'edit') {
       if (!briefId || !order.brief) {
@@ -150,13 +160,16 @@ export const POST: APIRoute = async ({ request }) => {
       const patchBriefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(briefData),
+        body: JSON.stringify(sanitized),
       });
 
       if (!patchBriefRes.ok) {
         const errText = await patchBriefRes.text();
         console.error('[submit-brief] Błąd edycji Brief:', errText);
-        return new Response(JSON.stringify({ error: 'Błąd zapisu briefu' }), {
+        return new Response(JSON.stringify({
+          error: 'Błąd zapisu briefu',
+          details: errText.slice(0, 300),
+        }), {
           status: 500, headers: { 'Content-Type': 'application/json' },
         });
       }
@@ -173,7 +186,7 @@ export const POST: APIRoute = async ({ request }) => {
       const briefRes = await fetch(`${payloadUrl}/api/briefs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(briefData),
+        body: JSON.stringify(sanitized),
       });
 
       if (!briefRes.ok) {
