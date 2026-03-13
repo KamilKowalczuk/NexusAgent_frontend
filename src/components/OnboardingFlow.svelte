@@ -91,7 +91,7 @@
       const res = await fetch('/api/onboarding/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, email: emailInput }),
+        body: JSON.stringify({ token, email: emailInput, mode }),
       });
       const data = await res.json();
       if (!res.ok) { errorMsg = data.error || 'Błąd wysyłki OTP.'; return; }
@@ -107,7 +107,7 @@
       const res = await fetch('/api/onboarding/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, otp: otpInput }),
+        body: JSON.stringify({ token, otp: otpInput, mode }),
       });
       const data = await res.json();
       if (!res.ok) { errorMsg = data.error || 'Błąd weryfikacji.'; return; }

@@ -9,7 +9,7 @@ function generateOtp(): string {
 
 export const POST: APIRoute = async ({ request }) => {
   const body = await request.json();
-  const { token, email } = body;
+  const { token, email, mode } = body as { token?: string; email?: string; mode?: 'onboarding' | 'edit' };
 
   if (!token || !email) {
     return new Response(JSON.stringify({ error: 'Brak tokenu lub emaila' }), {
@@ -18,11 +18,11 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
+  const tokenField = mode === 'edit' ? 'editToken' : 'onboardingToken';
 
   try {
-    // Znajdź Order po tokenie i sprawdź email
     const searchRes = await fetch(
-      `${payloadUrl}/api/orders?where[onboardingToken][equals]=${token}&limit=1`,
+      `${payloadUrl}/api/orders?where[${tokenField}][equals]=${encodeURIComponent(token)}&limit=1`,
       { headers: { 'Content-Type': 'application/json' } }
     );
     const searchData = await searchRes.json();
@@ -35,8 +35,13 @@ export const POST: APIRoute = async ({ request }) => {
 
     const order = searchData.docs[0];
 
-    // Jeśli brief już istnieje, link powinien być martwy nawet gdy onboardingToken jeszcze jest w bazie
-    if (order.brief) {
+    // W trybie edit brief musi istnieć; w trybie onboarding brief nie może istnieć (burn after reading)
+    if (mode === 'edit' && !order.brief) {
+      return new Response(JSON.stringify({ error: 'Brak briefu do edycji.' }), {
+        status: 409, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (mode !== 'edit' && order.brief) {
       return new Response(JSON.stringify({ error: 'Ten link został już wykorzystany. Brief jest zapisany.' }), {
         status: 410, headers: { 'Content-Type': 'application/json' },
       });

@@ -124,7 +124,7 @@ export const POST: APIRoute = async ({ request }) => {
     // Zweryfikuj token – ostatni raz
     const tokenField = mode === 'edit' ? 'editToken' : 'onboardingToken';
     const orderCheckRes = await fetch(
-      `${payloadUrl}/api/orders?where[${tokenField}][equals]=${token}&limit=1`,
+      `${payloadUrl}/api/orders?where[${tokenField}][equals]=${encodeURIComponent(token)}&limit=1`,
       { headers: { 'Content-Type': 'application/json' } }
     );
     const orderCheck = await orderCheckRes.json();
