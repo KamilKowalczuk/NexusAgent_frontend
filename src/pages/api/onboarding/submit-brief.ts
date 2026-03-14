@@ -14,7 +14,37 @@ const fontsDir = path.resolve(__dirname, '../../../assets/fonts');
 const publicDir = path.resolve(__dirname, '../../../../public');
 
 async function generateBriefPdf(brief: Record<string, any>, order: Record<string, any>): Promise<Buffer> {
-  return new Promise(async (resolve, reject) => {
+  // Rejestracja fontów Inter. Wyciągnięte przez tworzeniem PDF żeby móc wykonać async bezpiecznie (bez craszy środowiska).
+  const interRegularPath = path.join(publicDir, 'fonts', 'Inter-Regular.ttf');
+  const interBoldPath = path.join(publicDir, 'fonts', 'Inter-Bold.ttf');
+  const siteUrl = import.meta.env.SITE_URL || 'https://nexusagent.pl';
+
+  let hasInter = false;
+  let regBuf: Buffer | null = null;
+  let boldBuf: Buffer | null = null;
+
+  try {
+    if (fs.existsSync(interRegularPath) && fs.existsSync(interBoldPath)) {
+      regBuf = fs.readFileSync(interRegularPath);
+      boldBuf = fs.readFileSync(interBoldPath);
+      hasInter = true;
+    } else {
+      // Fallback Serverless
+      const [regRes, boldRes] = await Promise.all([
+        fetch(`${siteUrl}/fonts/Inter-Regular.ttf`),
+        fetch(`${siteUrl}/fonts/Inter-Bold.ttf`)
+      ]);
+      if (regRes.ok && boldRes.ok) {
+        regBuf = Buffer.from(await regRes.arrayBuffer());
+        boldBuf = Buffer.from(await boldRes.arrayBuffer());
+        hasInter = true;
+      }
+    }
+  } catch (e) {
+    console.warn('[submit-brief] Warning: Font Inter load failed, using Helvetica fallback. Error:', e);
+  }
+
+  return new Promise((resolve, reject) => {
     // margins bottom: 20 zapobiega pustej stronie przy doc.text(..., y: 810)
     const doc = new PDFDocument({ margins: { top: 50, bottom: 20, left: 50, right: 50 }, size: 'A4', bufferPages: true });
     const chunks: Buffer[] = [];
@@ -23,33 +53,9 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    // ─── Rejestracja fontów Inter (OTF/TTF z polskimi znakami) ───
-    const interRegularPath = path.join(publicDir, 'fonts', 'Inter-Regular.ttf');
-    const interBoldPath = path.join(publicDir, 'fonts', 'Inter-Bold.ttf');
-    const siteUrl = import.meta.env.SITE_URL || 'https://nexusagent.pl';
-
-    let hasInter = false;
-    try {
-      if (fs.existsSync(interRegularPath) && fs.existsSync(interBoldPath)) {
-        doc.registerFont('Inter', interRegularPath);
-        doc.registerFont('Inter-Bold', interBoldPath);
-        hasInter = true;
-      } else {
-        // Fallback dla Serverless (Netlify Edge functions rzadko widzą folder public w fs)
-        const [regRes, boldRes] = await Promise.all([
-          fetch(`${siteUrl}/fonts/Inter-Regular.ttf`),
-          fetch(`${siteUrl}/fonts/Inter-Bold.ttf`)
-        ]);
-        if (regRes.ok && boldRes.ok) {
-          const regBuf = Buffer.from(await regRes.arrayBuffer());
-          const boldBuf = Buffer.from(await boldRes.arrayBuffer());
-          doc.registerFont('Inter', regBuf);
-          doc.registerFont('Inter-Bold', boldBuf);
-          hasInter = true;
-        }
-      }
-    } catch (e) {
-      console.warn('Waring: Font Inter load failed, using Helvetica fallback');
+    if (hasInter && regBuf && boldBuf) {
+      doc.registerFont('Inter', regBuf);
+      doc.registerFont('Inter-Bold', boldBuf);
     }
 
     const fontRegular = hasInter ? 'Inter' : 'Helvetica';
