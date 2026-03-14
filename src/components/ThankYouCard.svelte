@@ -15,6 +15,7 @@
   let billingCity = $state('');
   let billingPostalCode = $state('');
   let billingCountry = $state('');
+  let orderNumber = $state('');
 
   $effect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -51,6 +52,7 @@
       billingCity = data.billingCity || '';
       billingPostalCode = data.billingPostalCode || '';
       billingCountry = data.billingCountry || '';
+      orderNumber = data.orderNumber || '';
       isValid = true;
       isLoading = false;
     } catch {
@@ -221,6 +223,17 @@
               {/if}
             </div>
             <div class="text-[10px] text-slate-600 mt-3 font-mono">Faktury VAT będą generowane na powyższe dane.</div>
+          </div>
+        {/if}
+
+        {#if orderNumber}
+          <div class="glass rounded-xl p-5 border border-cyan-500/20 text-left mb-6 bg-cyan-500/5">
+            <div class="text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm">receipt</span>
+              Numer Zamówienia
+            </div>
+            <div class="text-2xl font-black font-mono text-white tracking-widest mb-2">{orderNumber}</div>
+            <div class="text-[10px] text-slate-500 font-mono">Zapisz ten numer — będziesz go potrzebować do edycji briefu lub ponownego linku ze strony nexusagent.pl</div>
           </div>
         {/if}
 

@@ -23,8 +23,9 @@ function buildOnboardingEmail(params: {
   billingCity: string;
   billingPostalCode: string;
   billingCountry: string;
+  orderNumber: string;
 }): { subject: string; html: string } {
-  const { token, dailyLimit, monthlyAmount, siteUrl, billingName, billingPhone, billingCompanyName, billingNip, billingStreet, billingCity, billingPostalCode, billingCountry } = params;
+  const { token, dailyLimit, monthlyAmount, siteUrl, billingName, billingPhone, billingCompanyName, billingNip, billingStreet, billingCity, billingPostalCode, billingCountry, orderNumber } = params;
   const link = `${siteUrl}/onboarding/${token}`;
 
   // Buduj sekcję danych do faktury (tylko jeśli cokolwiek wypełnione)
@@ -115,6 +116,17 @@ function buildOnboardingEmail(params: {
 
               <!-- Dane do faktury -->
               ${billingHtml}
+
+              <!-- Numer zamówienia -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(12,234,237,0.04);border:1px solid rgba(12,234,237,0.15);border-radius:12px;padding:16px;margin-bottom:24px;">
+                <tr>
+                  <td>
+                    <div style="font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em;color:#0ceaed;margin-bottom:6px;">📄 Numer Zamówienia</div>
+                    <div style="font-size:20px;font-weight:800;font-family:monospace;color:#fff;letter-spacing:0.1em;">${orderNumber || 'Generowany...'}</div>
+                    <div style="font-size:10px;color:#64748b;margin-top:6px;">Zapisz ten numer &mdash; będziesz go potrzebować do edycji briefu lub ponownego wysyłania linka ze strony nexusagent.pl</div>
+                  </td>
+                </tr>
+              </table>
 
               <!-- CTA -->
               <div style="text-align:center;margin-bottom:32px;">
@@ -261,6 +273,13 @@ export const POST: APIRoute = async ({ request }) => {
         console.error('[Webhook Stripe] Błąd zapisu Order:', await orderRes.text());
       }
 
+      // Odczytaj orderNumber z zapisanego dokumentu
+      let orderNumber = '';
+      try {
+        const orderDoc = await orderRes.clone().json();
+        orderNumber = orderDoc?.doc?.orderNumber || orderDoc?.orderNumber || '';
+      } catch { /* ignoruj — email pojdzie bez numeru */ }
+
       // Aktualizuj sloty w LandingPage global
       try {
         const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
@@ -301,6 +320,7 @@ export const POST: APIRoute = async ({ request }) => {
           billingCity,
           billingPostalCode,
           billingCountry,
+          orderNumber,
         });
 
         const emailResult = await resend.emails.send({

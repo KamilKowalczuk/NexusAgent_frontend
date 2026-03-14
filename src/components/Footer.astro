@@ -1,4 +1,6 @@
 ---
+import RequestLinkForm from './RequestLinkForm.svelte';
+
 interface Props {
   data?: {
     copyright?: string;
@@ -62,6 +64,14 @@ const navLinks =
             </a>
           ))
         }
+        <!-- Link do formularza edycji briefu (tylko dla klientów) -->
+        <button
+          id="open-brief-form"
+          onclick="document.dispatchEvent(new CustomEvent('open-brief-form'))"
+          class="hover:text-cyan-400 transition-colors duration-300 cursor-pointer bg-transparent border-none p-0 font-mono text-[10px] uppercase tracking-widest text-slate-500"
+        >
+          Edytuj / wyślij ponownie brief
+        </button>
       </div>
     </div>
 
@@ -90,3 +100,6 @@ const navLinks =
   >
   </div>
 </footer>
+
+<!-- Modal formularza edycji briefu -->
+<RequestLinkForm client:load />

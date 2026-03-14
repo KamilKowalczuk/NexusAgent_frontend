@@ -56,6 +56,26 @@ export const GET: APIRoute = async ({ url }) => {
     const billingPostalCode = address?.postal_code || '';
     const billingCountry = address?.country || 'PL';
 
+    // Pobierz orderNumber z Payload CMS
+    let orderNumber = '';
+    try {
+      const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
+      const apiKey = import.meta.env.PAYLOAD_API_KEY;
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
+
+      const orderRes = await fetch(
+        `${payloadUrl}/api/orders?where[customerEmail][equals]=${encodeURIComponent(customerEmail)}&limit=1&sort=-createdAt`,
+        { headers: authHeaders }
+      );
+      if (orderRes.ok) {
+        const orderData = await orderRes.json();
+        orderNumber = orderData.docs?.[0]?.orderNumber || '';
+      }
+    } catch (e) {
+      console.warn('[verify-session] Nie udało się pobrać orderNumber z Payload:', e);
+    }
+
     return new Response(
       JSON.stringify({
         valid: true,
@@ -70,6 +90,7 @@ export const GET: APIRoute = async ({ url }) => {
         billingCity,
         billingPostalCode,
         billingCountry,
+        orderNumber,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
