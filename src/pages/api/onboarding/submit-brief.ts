@@ -145,10 +145,10 @@ export const POST: APIRoute = async ({ request }) => {
     // Sanityzacja briefData – usuń pola, które mogą zepsuć zapis Payload CMS przy operacji PATCH/POST
     const sanitized = { ...briefData } as Record<string, unknown>;
     
-    // Lista pól zarządzanych wewnętrznie przez CMS:
+    // Lista pól zarządzanych wewnętrznie przez CMS (nie ruszaj id żeby nie nadpisywać niepotrzebnie)
     const fieldsToDrop = [
       'id', 'createdAt', 'updatedAt', 'globalType', 
-      '_status', '_isTitle', '_magic', 'sizes', 
+      '_isTitle', '_magic', 'sizes', 
       'filename', 'mimeType', 'filesize', 'url'
     ];
     
@@ -157,6 +157,9 @@ export const POST: APIRoute = async ({ request }) => {
         delete sanitized[field];
       }
     }
+
+    // Wymuszony zapis nadpisanej/nowej wersji z użyciem Drafts
+    sanitized._status = 'published';
 
     // Specyficzne traktowanie hasła IMAP zabezpieczanego w Cloud KMS (jeśli jest to pusta wartość lub "przedszyfrowany" marker - zignoruj)
     const placeholder = '[ZASZYFROWANE PRZEZ GOOGLE KMS]';
