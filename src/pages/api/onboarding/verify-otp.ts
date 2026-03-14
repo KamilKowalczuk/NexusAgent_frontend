@@ -64,7 +64,6 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    console.log(`[verify-otp] Znaleziono order ${order.id}, mode=${finalMode}, brief=${JSON.stringify(order.brief)}`);
 
     // W trybie edit brief musi istnieć; w trybie onboarding brief nie może istnieć (burn after reading)
     if (finalMode === 'edit' && !order.brief) {
@@ -120,10 +119,8 @@ export const POST: APIRoute = async ({ request }) => {
       if (typeof order.brief === 'object' && order.brief !== null) {
         briefId = order.brief.id;
         briefData = order.brief as Record<string, unknown>;
-        console.log(`[verify-otp] Brief pobrany inline (depth=2), companyName=${briefData?.companyName}`);
       } else {
         briefId = order.brief;
-        console.warn(`[verify-otp] Brief jest stringiem (${briefId}), depth=2 zablokowany przez Access Control. Wymuszam pobranie bezp...`);
         
         try {
           const forceAuthHeaders = {
@@ -135,22 +132,18 @@ export const POST: APIRoute = async ({ request }) => {
             headers: forceAuthHeaders 
           });
 
-          console.log(`[verify-otp] Fallback fetch status: ${briefRes.status}`);
-
           if (briefRes.ok) {
             const briefJson = await briefRes.json();
             briefData = (briefJson.doc || briefJson) as Record<string, unknown>;
-            console.log(`[verify-otp] Fallback success: companyName=${briefData?.companyName}`);
           } else {
             console.error(`[verify-otp] Fallback fetch failed: ${await briefRes.text()}`);
           }
         } catch (e) {
-          console.error(`[verify-otp] Błąd poczas force fetch briefa:`, e);
+          console.error(`[verify-otp] Błąd podczas fetch briefa:`, e);
         }
       }
     }
 
-    console.log(`[verify-otp] Odpowiedź: mode=${finalMode}, briefId=${briefId}, hasBrief=${!!briefData}`);
 
     return new Response(JSON.stringify({
       verified: true,

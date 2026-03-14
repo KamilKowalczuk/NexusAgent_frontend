@@ -7,6 +7,14 @@
   let emailsPerDay = $state(20);
   let priceInPLN = $state(1999);
   let customerEmail = $state('');
+  let customerName = $state('');
+  let customerPhone = $state('');
+  let billingCompanyName = $state('');
+  let billingNip = $state('');
+  let billingStreet = $state('');
+  let billingCity = $state('');
+  let billingPostalCode = $state('');
+  let billingCountry = $state('');
 
   $effect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -35,6 +43,14 @@
       emailsPerDay = data.emailsPerDay;
       priceInPLN = data.priceInPLN;
       customerEmail = data.customerEmail;
+      customerName = data.customerName || '';
+      customerPhone = data.customerPhone || '';
+      billingCompanyName = data.billingCompanyName || '';
+      billingNip = data.billingNip || '';
+      billingStreet = data.billingStreet || '';
+      billingCity = data.billingCity || '';
+      billingPostalCode = data.billingPostalCode || '';
+      billingCountry = data.billingCountry || '';
       isValid = true;
       isLoading = false;
     } catch {
@@ -42,6 +58,8 @@
       errorMsg = 'fetch_error';
     }
   }
+
+  const hasBillingData = $derived(billingCompanyName || billingNip || billingStreet);
 
   const steps = [
     'Autoryzacja (Natychmiast) – Otrzymujesz na maila potwierdzenie subskrypcji oraz informację o limicie.',
@@ -161,12 +179,48 @@
         </div>
 
         {#if customerEmail}
-          <div class="glass rounded-xl p-4 border border-white/5 text-left mb-10 flex items-center gap-3">
+          <div class="glass rounded-xl p-4 border border-white/5 text-left mb-6 flex items-center gap-3">
             <span class="material-symbols-outlined text-green-400 text-lg">mail</span>
             <div>
               <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Potwierdzenie wysłane na</div>
               <div class="text-white text-sm font-mono">{customerEmail}</div>
             </div>
+          </div>
+        {/if}
+
+        {#if hasBillingData}
+          <div class="glass rounded-xl p-5 border border-cyan-500/10 text-left mb-6">
+            <div class="text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm">receipt_long</span>
+              Dane do faktury
+            </div>
+            <div class="space-y-1.5 text-sm">
+              {#if customerName}
+                <div class="flex gap-2">
+                  <span class="text-slate-500 text-xs font-mono w-16 shrink-0">Kontakt</span>
+                  <span class="text-white">{customerName}{customerPhone ? ` · ${customerPhone}` : ''}</span>
+                </div>
+              {/if}
+              {#if billingCompanyName}
+                <div class="flex gap-2">
+                  <span class="text-slate-500 text-xs font-mono w-16 shrink-0">Firma</span>
+                  <span class="text-white">{billingCompanyName}</span>
+                </div>
+              {/if}
+              {#if billingNip}
+                <div class="flex gap-2">
+                  <span class="text-slate-500 text-xs font-mono w-16 shrink-0">NIP</span>
+                  <span class="text-white font-mono">{billingNip}</span>
+                </div>
+              {/if}
+              {#if billingStreet}
+                <div class="flex gap-2">
+                  <span class="text-slate-500 text-xs font-mono w-16 shrink-0">Adres</span>
+                  <span class="text-white">{billingStreet}, {billingPostalCode} {billingCity}{billingCountry && billingCountry !== 'PL' ? `, ${billingCountry}` : ''}</span>
+                </div>
+              {/if}
+            </div>
+            <div class="text-[10px] text-slate-600 mt-3 font-mono">Faktury VAT będą generowane na powyższe dane.</div>
           </div>
         {/if}
 

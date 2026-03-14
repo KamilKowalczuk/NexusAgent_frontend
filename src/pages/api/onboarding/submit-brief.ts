@@ -1,69 +1,101 @@
 import type { APIRoute } from 'astro';
 import { Resend } from 'resend';
 import PDFDocument from 'pdfkit';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 export const prerender = false;
 
+// Resolve ścieżek do fontów i logo
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const fontsDir = path.resolve(__dirname, '../../../assets/fonts');
+const publicDir = path.resolve(__dirname, '../../../../public');
+
 async function generateBriefPdf(brief: Record<string, any>, order: Record<string, any>): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
     const chunks: Buffer[] = [];
 
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    // ─── Rejestracja fontów Inter (OTF — obsługuje polskie znaki) ───
+    const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
+    const interBoldPath = path.join(fontsDir, 'Inter-Bold.ttf');
+
+    const hasInter = fs.existsSync(interRegularPath) && fs.existsSync(interBoldPath);
+
+    if (hasInter) {
+      doc.registerFont('Inter', interRegularPath);
+      doc.registerFont('Inter-Bold', interBoldPath);
+    }
+
+    const fontRegular = hasInter ? 'Inter' : 'Helvetica';
+    const fontBold = hasInter ? 'Inter-Bold' : 'Helvetica-Bold';
+
     const cyan = '#0ceaed';
     const purple = '#a855f7';
     const dark = '#0a0a0f';
-    const gray = '#64748b';
+    const gray = '#94a3b8';
+    const dimGray = '#64748b';
 
-    // Background
+    // ─── Tło ───
     doc.rect(0, 0, 595, 842).fill(dark);
 
-    // Header
-    doc.fontSize(8).fillColor(cyan).font('Helvetica')
-      .text('NEXUS AGENT v2.4 · BRIEF WDROŻENIOWY · POUFNE', 50, 40, { align: 'center' });
+    // ─── Logo ───
+    const logoPath = path.join(publicDir, 'logo.png');
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 247, 30, { width: 100, height: 100 });
+      doc.moveDown(5);
+    }
 
-    doc.moveDown(0.5);
-    doc.fontSize(22).fillColor('#ffffff').font('Helvetica-Bold')
+    // ─── Nagłówek ───
+    doc.fontSize(7).fillColor(cyan).font(fontRegular)
+      .text('NEXUS AGENT v2.4 · BRIEF WDROŻENIOWY · POUFNE', 50, 140, { align: 'center' });
+
+    doc.moveDown(0.3);
+    doc.fontSize(20).fillColor('#ffffff').font(fontBold)
       .text('BRIEF WDROŻENIOWY', { align: 'center' });
-    doc.fontSize(14).fillColor(purple)
+    doc.fontSize(12).fillColor(purple)
       .text(brief.companyName?.toUpperCase() || 'KLIENT', { align: 'center' });
 
-    doc.moveDown(1);
+    doc.moveDown(0.8);
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor(purple).lineWidth(1).stroke();
-    doc.moveDown(1);
+    doc.moveDown(0.8);
 
+    // ─── Helpery ───
     const section = (title: string) => {
-      doc.moveDown(0.8);
-      doc.fontSize(8).fillColor(cyan).font('Helvetica')
+      if (doc.y > 720) doc.addPage().rect(0, 0, 595, 842).fill(dark);
+      doc.moveDown(0.6);
+      doc.fontSize(7).fillColor(cyan).font(fontRegular)
         .text(title.toUpperCase(), { characterSpacing: 2 });
       doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor('#1e293b').lineWidth(0.5).stroke();
-      doc.moveDown(0.5);
+      doc.moveDown(0.4);
     };
 
     const field = (label: string, value: string | undefined | null) => {
       if (!value) return;
-      doc.fontSize(8).fillColor(gray).font('Helvetica').text(label + ':', { continued: false });
-      doc.fontSize(10).fillColor('#e2e8f0').font('Helvetica').text(value, { indent: 10 });
-      doc.moveDown(0.4);
+      if (doc.y > 770) doc.addPage().rect(0, 0, 595, 842).fill(dark);
+      doc.fontSize(7).fillColor(dimGray).font(fontRegular).text(`${label}:`, { continued: false });
+      doc.fontSize(9).fillColor('#e2e8f0').font(fontRegular).text(value, { indent: 10 });
+      doc.moveDown(0.3);
     };
 
-    // Dane ogólne
+    // ─── Sekcje ───
     section('Dane Ogólne');
     field('Firma', brief.companyName);
     field('Branża', brief.industry);
     field('Nadawca', brief.senderName);
     field('Strona WWW', brief.websiteUrl);
 
-    // Plan
     section('Plan Subskrypcji');
     field('Dzienny limit wysyłki', `${order.dailyLimit} maili / dzień`);
     field('Koszt miesięczny', `${order.monthlyAmount?.toLocaleString('pl-PL')} PLN / miesiąc`);
     field('Tryb działania agenta', brief.actionMode === 'auto_send' ? 'Auto Send' : 'Save to Drafts');
 
-    // Mózg AI
     section('Konfiguracja AI');
     field('Cel kampanii', brief.campaignGoal);
     field('Propozycja wartości', brief.valueProposition);
@@ -72,7 +104,6 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
     field('Ograniczenia', brief.negativeConstraints);
     field('Case Studies', brief.caseStudies);
 
-    // Uwierzytelnienie
     section('Metoda Uwierzytelnienia Poczty');
     const authLabels: Record<string, string> = {
       nexus_lookalike_domain: 'NEXUS Infrastructure (domena lookalike)',
@@ -90,17 +121,23 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
       field('Hasło IMAP', '[Zabezpieczono w Google Cloud KMS – brak dostępu]');
     }
 
-    // Ustawienia
     section('Ustawienia Systemu');
     field('Warm-up domenowy', brief.warmupStrategy ? 'Włączony (zalecane)' : 'Wyłączony');
     field('Auto-generuj stopkę', brief.autoGenerateSignature ? 'Tak' : 'Nie');
 
-    // Footer
-    doc.fontSize(7).fillColor('#1e293b')
+    // ─── Stopka (na dole aktualnej strony, NIE na nowej) ───
+    const currentPage = doc.bufferedPageRange();
+    const lastPage = currentPage.start + currentPage.count - 1;
+    doc.switchToPage(lastPage);
+    doc.fontSize(6).fillColor('#1e293b').font(fontRegular)
       .text(
         `Wygenerowano: ${new Date().toLocaleString('pl-PL')} · NEXUS AGENT · nexusagent.pl`,
-        50, 800, { align: 'center' }
+        50, 810, { align: 'center' }
       );
+
+    // Usuń ewentualne puste strony dodane przez PDFKit
+    const range = doc.bufferedPageRange();
+    // Nie robimy nic z pustymi stronami — bufferPages: true zapobiega ich tworzeniu
 
     doc.end();
   });
@@ -164,17 +201,6 @@ export const POST: APIRoute = async ({ request }) => {
       delete sanitized.imapPassword;
     }
 
-    // ─── DEBUG LOG (produkcja) ───
-    console.log('[submit-brief] DEBUG:', JSON.stringify({
-      payloadUrl,
-      hasApiKey: !!apiKey,
-      apiKeyFirst8: apiKey ? apiKey.substring(0, 8) + '...' : 'BRAK',
-      mode,
-      briefId,
-      orderHasBrief: !!order.brief,
-      orderId,
-      sanitizedKeys: Object.keys(sanitized),
-    }));
 
     // Tryb edycji – aktualizujemy istniejący brief
     if (mode === 'edit') {
@@ -201,7 +227,6 @@ export const POST: APIRoute = async ({ request }) => {
         });
       }
 
-      console.log(`[submit-brief] Brief ${briefId} zaktualizowany (edycja) ✓`);
     } else {
       // Pierwsze wypełnienie – utwórz nowy Brief
       if (order.brief) {
@@ -210,7 +235,6 @@ export const POST: APIRoute = async ({ request }) => {
         });
       }
 
-      console.log('[submit-brief] POST body:', JSON.stringify(sanitized).substring(0, 500));
 
       const briefRes = await fetch(`${payloadUrl}/api/briefs`, {
         method: 'POST',
@@ -246,7 +270,6 @@ export const POST: APIRoute = async ({ request }) => {
         console.error('[submit-brief] Order link PATCH failed:', linkRes.status, await linkRes.text());
       }
 
-      console.log(`[submit-brief] Brief ${briefId} zapisany i token unieważniony ✓`);
     }
 
     // Generuj PDF
@@ -289,7 +312,6 @@ export const POST: APIRoute = async ({ request }) => {
         ],
       });
 
-      console.log(`[submit-brief] Email z PDF wysłany na ${order.customerEmail} ✓`);
     }
 
     return new Response(JSON.stringify({ success: true, briefId }), {

@@ -39,6 +39,22 @@ export const GET: APIRoute = async ({ url }) => {
     const priceInPLN = parseInt(session.metadata?.priceInPLN || '1999');
     const customerEmail = session.customer_details?.email || '';
     const customerName = session.customer_details?.name || '';
+    const customerPhone = (session as any).customer_details?.phone || '';
+
+    // Custom fields (NIP, firma)
+    const customFields = (session as any).custom_fields || [];
+    const nipField = customFields.find((f: any) => f.key === 'nip');
+    const companyField = customFields.find((f: any) => f.key === 'company_name');
+
+    const billingNip = nipField?.text?.value || '';
+    const billingCompanyName = companyField?.text?.value || '';
+
+    // Adres rozliczeniowy
+    const address = session.customer_details?.address;
+    const billingStreet = [address?.line1, address?.line2].filter(Boolean).join(', ') || '';
+    const billingCity = address?.city || '';
+    const billingPostalCode = address?.postal_code || '';
+    const billingCountry = address?.country || 'PL';
 
     return new Response(
       JSON.stringify({
@@ -47,6 +63,13 @@ export const GET: APIRoute = async ({ url }) => {
         priceInPLN,
         customerEmail,
         customerName,
+        customerPhone,
+        billingCompanyName,
+        billingNip,
+        billingStreet,
+        billingCity,
+        billingPostalCode,
+        billingCountry,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

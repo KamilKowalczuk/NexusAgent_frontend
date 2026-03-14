@@ -34,6 +34,22 @@ export const POST: APIRoute = async ({ request }) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
+      billing_address_collection: 'required',
+      phone_number_collection: { enabled: true },
+      custom_fields: [
+        {
+          key: 'nip',
+          label: { type: 'custom', custom: 'NIP firmy (opcjonalnie)' },
+          type: 'text',
+          optional: true,
+        },
+        {
+          key: 'company_name',
+          label: { type: 'custom', custom: 'Nazwa firmy (do faktury)' },
+          type: 'text',
+          optional: true,
+        },
+      ],
       line_items: [
         {
           price_data: {

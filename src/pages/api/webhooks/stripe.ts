@@ -15,9 +15,35 @@ function buildOnboardingEmail(params: {
   dailyLimit: number;
   monthlyAmount: number;
   siteUrl: string;
+  billingName: string;
+  billingPhone: string;
+  billingCompanyName: string;
+  billingNip: string;
+  billingStreet: string;
+  billingCity: string;
+  billingPostalCode: string;
+  billingCountry: string;
 }): { subject: string; html: string } {
-  const { token, dailyLimit, monthlyAmount, siteUrl } = params;
+  const { token, dailyLimit, monthlyAmount, siteUrl, billingName, billingPhone, billingCompanyName, billingNip, billingStreet, billingCity, billingPostalCode, billingCountry } = params;
   const link = `${siteUrl}/onboarding/${token}`;
+
+  // Buduj sekcję danych do faktury (tylko jeśli cokolwiek wypełnione)
+  const hasBilling = billingCompanyName || billingNip || billingStreet;
+  const billingHtml = hasBilling ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(12,234,237,0.05);border:1px solid rgba(12,234,237,0.2);border-radius:12px;padding:16px;margin-bottom:24px;">
+                <tr>
+                  <td>
+                    <div style="font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em;color:#0ceaed;margin-bottom:10px;">📋 Dane do faktury</div>
+                    <div style="font-size:12px;color:#e2e8f0;line-height:1.8;">
+                      ${billingName ? `<strong>Kontakt:</strong> ${billingName}${billingPhone ? ` · ${billingPhone}` : ''}<br/>` : ''}
+                      ${billingCompanyName ? `<strong>Firma:</strong> ${billingCompanyName}<br/>` : ''}
+                      ${billingNip ? `<strong>NIP:</strong> ${billingNip}<br/>` : ''}
+                      ${billingStreet ? `<strong>Adres:</strong> ${billingStreet}, ${billingPostalCode} ${billingCity}${billingCountry && billingCountry !== 'PL' ? `, ${billingCountry}` : ''}<br/>` : ''}
+                    </div>
+                    <div style="font-size:10px;color:#64748b;margin-top:8px;">Dane zapisane automatycznie. Faktury będą generowane na powyższe dane.</div>
+                  </td>
+                </tr>
+              </table>` : '';
 
   return {
     subject: 'NEXUS Agent – Twój jednorazowy link do konfiguracji systemu',
@@ -68,7 +94,7 @@ function buildOnboardingEmail(params: {
               </p>
 
               <!-- Plan details -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:24px;">
                 <tr>
                   <td style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
                     <span style="font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em;color:#64748b;">Dzienny limit wysyłki</span><br/>
@@ -86,6 +112,9 @@ function buildOnboardingEmail(params: {
                   </td>
                 </tr>
               </table>
+
+              <!-- Dane do faktury -->
+              ${billingHtml}
 
               <!-- CTA -->
               <div style="text-align:center;margin-bottom:32px;">
@@ -172,8 +201,9 @@ export const POST: APIRoute = async ({ request }) => {
   const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
   const siteUrl = import.meta.env.SITE_URL || 'https://nexusagent.pl';
   const resendKey = import.meta.env.RESEND_API_KEY;
-
-  console.log(`[Webhook Stripe] Event: ${event.type}`);
+  const apiKey = import.meta.env.PAYLOAD_API_KEY;
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
 
   // --- checkout.session.completed ---
   if (event.type === 'checkout.session.completed') {
@@ -186,13 +216,27 @@ export const POST: APIRoute = async ({ request }) => {
     const stripeSubscriptionId = session.subscription as string;
     const onboardingToken = generateOnboardingToken();
 
-    console.log(`[Webhook Stripe] Nowy klient: ${customerEmail}, token: ${onboardingToken.slice(0, 8)}...`);
+    // ─── Wyciągnij dane firmowe z custom_fields i customer_details ───
+    const customFields = (session as any).custom_fields || [];
+    const nipField = customFields.find((f: any) => f.key === 'nip');
+    const companyField = customFields.find((f: any) => f.key === 'company_name');
+
+    const billingNip = nipField?.text?.value || '';
+    const billingCompanyName = companyField?.text?.value || '';
+    const billingName = session.customer_details?.name || '';
+    const billingPhone = (session as any).customer_details?.phone || '';
+
+    const address = session.customer_details?.address;
+    const billingStreet = [address?.line1, address?.line2].filter(Boolean).join(', ') || '';
+    const billingCity = address?.city || '';
+    const billingPostalCode = address?.postal_code || '';
+    const billingCountry = address?.country || 'PL';
 
     try {
-      // Zapisz zamówienie do Payload
+      // Zapisz zamówienie do Payload z danymi fakturowymi
       const orderRes = await fetch(`${payloadUrl}/api/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           customerEmail,
           stripeCustomerId,
@@ -201,26 +245,33 @@ export const POST: APIRoute = async ({ request }) => {
           monthlyAmount,
           subscriptionStatus: 'active',
           onboardingToken,
+          // Dane do faktury
+          billingName,
+          billingPhone,
+          billingCompanyName,
+          billingNip,
+          billingStreet,
+          billingCity,
+          billingPostalCode,
+          billingCountry,
         }),
       });
 
       if (!orderRes.ok) {
         console.error('[Webhook Stripe] Błąd zapisu Order:', await orderRes.text());
-      } else {
-        console.log('[Webhook Stripe] Order zapisany ✓');
       }
 
       // Aktualizuj sloty w LandingPage global
       try {
         const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
         });
         if (globalRes.ok) {
           const globalData = await globalRes.json();
           const currentUsed = globalData?.slots?.usedSlots ?? 0;
           await fetch(`${payloadUrl}/api/globals/landing-page`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders,
             body: JSON.stringify({
               slots: {
                 totalSlots: globalData?.slots?.totalSlots ?? 10,
@@ -242,6 +293,14 @@ export const POST: APIRoute = async ({ request }) => {
           dailyLimit,
           monthlyAmount,
           siteUrl,
+          billingName,
+          billingPhone,
+          billingCompanyName,
+          billingNip,
+          billingStreet,
+          billingCity,
+          billingPostalCode,
+          billingCountry,
         });
 
         const emailResult = await resend.emails.send({
@@ -253,42 +312,55 @@ export const POST: APIRoute = async ({ request }) => {
 
         if (emailResult.error) {
           console.error('[Webhook Stripe] Błąd wysyłki emaila:', emailResult.error);
-        } else {
-          console.log(`[Webhook Stripe] Email onboardingowy wysłany na ${customerEmail} ✓`);
         }
-      } else {
-        console.warn('[Webhook Stripe] Brak RESEND_API_KEY lub customerEmail – email nie wysłany');
       }
     } catch (err) {
       console.error('[Webhook Stripe] Błąd ogólny:', err);
     }
   }
 
-  // --- invoice.payment_succeeded – aktualizacja currentPeriodEnd ---
+  // --- invoice.payment_succeeded – dodaj wpis do tablicy payments ---
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as Stripe.Invoice;
     const subscriptionId = (invoice as any).subscription as string;
     const periodEnd = (invoice as any).lines?.data?.[0]?.period?.end;
+    const periodStart = (invoice as any).lines?.data?.[0]?.period?.start;
 
     if (subscriptionId) {
       try {
         const searchRes = await fetch(
           `${payloadUrl}/api/orders?where[stripeSubscriptionId][equals]=${subscriptionId}&limit=1`,
-          { headers: { 'Content-Type': 'application/json' } }
+          { headers: authHeaders }
         );
         if (searchRes.ok) {
           const searchData = await searchRes.json();
           if (searchData.docs?.length > 0) {
-            const orderId = searchData.docs[0].id;
+            const order = searchData.docs[0];
+            const orderId = order.id;
+
+            // Nowy wpis w tablicy payments
+            const newPayment = {
+              stripeInvoiceId: invoice.id,
+              amount: Math.round(((invoice as any).amount_paid || 0) / 100),
+              paidAt: new Date().toISOString(),
+              status: 'paid',
+              ...(periodStart ? { periodStart: new Date(periodStart * 1000).toISOString() } : {}),
+              ...(periodEnd ? { periodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
+              invoiceUrl: '',   // Podkładka pod API fakturowe
+              invoicePdf: '',   // Podkładka pod API fakturowe
+            };
+
+            const existingPayments = order.payments || [];
+
             await fetch(`${payloadUrl}/api/orders/${orderId}`, {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authHeaders,
               body: JSON.stringify({
                 subscriptionStatus: 'active',
+                payments: [...existingPayments, newPayment],
                 ...(periodEnd ? { currentPeriodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
               }),
             });
-            console.log(`[Webhook Stripe] Order ${orderId} zaktualizowany po płatności ✓`);
           }
         }
       } catch (err) {
@@ -303,17 +375,16 @@ export const POST: APIRoute = async ({ request }) => {
     try {
       const searchRes = await fetch(
         `${payloadUrl}/api/orders?where[stripeSubscriptionId][equals]=${subscription.id}&limit=1`,
-        { headers: { 'Content-Type': 'application/json' } }
+        { headers: authHeaders }
       );
       if (searchRes.ok) {
         const data = await searchRes.json();
         if (data.docs?.length > 0) {
           await fetch(`${payloadUrl}/api/orders/${data.docs[0].id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders,
             body: JSON.stringify({ subscriptionStatus: 'canceled' }),
           });
-          console.log(`[Webhook Stripe] Subskrypcja ${subscription.id} anulowana ✓`);
         }
       }
     } catch (err) {
