@@ -4,7 +4,6 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ url }) => {
   const token = url.searchParams.get('token');
-  const mode = url.searchParams.get('mode') || 'onboarding';
 
   if (!token) {
     return new Response(JSON.stringify({ valid: false, error: 'Brak tokenu' }), {
@@ -15,45 +14,35 @@ export const GET: APIRoute = async ({ url }) => {
   const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
 
   try {
-    // TRYB 1: Onboarding (pierwsze wypełnienie briefu)
-    if (mode !== 'edit') {
-      const res = await fetch(
-        `${payloadUrl}/api/orders?where[onboardingToken][equals]=${token}&limit=1&depth=1`,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+    // ─── SPRAWDZAMY CZY TO JEST LINK "ONBOARDING" ──────────────────────────────────
+    const res = await fetch(
+      `${payloadUrl}/api/orders?where[onboardingToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
 
-      if (!res.ok) {
-        return new Response(JSON.stringify({ valid: false, error: 'Błąd bazy danych' }), {
-          status: 500, headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
+    if (res.ok) {
       const data = await res.json();
-      if (!data.docs?.length) {
-        return new Response(JSON.stringify({ valid: false, error: 'Nieprawidłowy lub wygasły link' }), {
-          status: 404, headers: { 'Content-Type': 'application/json' },
+      if (data.docs?.length > 0) {
+        const order = data.docs[0];
+
+        // Sprawdź czy brief już wypełniony (burn after reading)
+        if (order.brief) {
+          return new Response(JSON.stringify({ valid: false, error: 'Ten link został już wykorzystany. Brief wdrożeniowy jest w trakcie realizacji.' }), {
+            status: 410, headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(JSON.stringify({
+          valid: true,
+          mode: 'onboarding',
+          orderId: order.id,
+          customerEmail: order.customerEmail,
+          dailyLimit: order.dailyLimit,
+          monthlyAmount: order.monthlyAmount,
+        }), {
+          status: 200, headers: { 'Content-Type': 'application/json' },
         });
       }
-
-      const order = data.docs[0];
-
-      // Sprawdź czy brief już wypełniony (burn after reading)
-      if (order.brief) {
-        return new Response(JSON.stringify({ valid: false, error: 'Ten link został już wykorzystany. Brief wdrożeniowy jest w trakcie realizacji.' }), {
-          status: 410, headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      return new Response(JSON.stringify({
-        valid: true,
-        mode: 'onboarding',
-        orderId: order.id,
-        customerEmail: order.customerEmail,
-        dailyLimit: order.dailyLimit,
-        monthlyAmount: order.monthlyAmount,
-      }), {
-        status: 200, headers: { 'Content-Type': 'application/json' },
-      });
     }
 
     // TRYB 2: Edycja istniejącego briefu – API key wymagany (Briefs read: !!user)
@@ -70,7 +59,7 @@ export const GET: APIRoute = async ({ url }) => {
     };
 
     const editRes = await fetch(
-      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=2`,
+      `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
       { headers: authHeaders }
     );
 
@@ -97,16 +86,6 @@ export const GET: APIRoute = async ({ url }) => {
       });
     }
 
-    // Z depth=2 i API key brief jest w order.brief; jeśli tylko ID – pobierz osobno
-    let briefData: Record<string, unknown> | null = typeof rawBrief === 'object' && rawBrief !== null ? rawBrief as Record<string, unknown> : null;
-    if (!briefData) {
-      const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, { headers: authHeaders });
-      if (briefRes.ok) {
-        const briefJson = await briefRes.json();
-        briefData = (briefJson.doc ?? briefJson) as Record<string, unknown>;
-      }
-    }
-
     return new Response(JSON.stringify({
       valid: true,
       mode: 'edit',
@@ -115,7 +94,6 @@ export const GET: APIRoute = async ({ url }) => {
       dailyLimit: order.dailyLimit,
       monthlyAmount: order.monthlyAmount,
       briefId,
-      brief: briefData,
     }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });

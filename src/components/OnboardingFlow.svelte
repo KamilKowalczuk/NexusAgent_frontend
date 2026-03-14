@@ -52,11 +52,7 @@
   $effect(() => {
     if (!token) { stage = 'invalid'; errorMsg = 'Brak tokenu w URL.'; return; }
 
-    const url = new URL(window.location.href);
-    const m = url.searchParams.get('mode') || 'onboarding';
-    if (m === 'edit') mode = 'edit';
-
-    fetch(`/api/onboarding/verify-token?token=${encodeURIComponent(token)}&mode=${m}`)
+    fetch(`/api/onboarding/verify-token?token=${encodeURIComponent(token)}`)
       .then(r => r.json())
       .then(data => {
         if (!data.valid) {
@@ -69,33 +65,8 @@
         dailyLimit = data.dailyLimit;
         monthlyAmount = data.monthlyAmount;
         emailInput = data.customerEmail;
-        if (data.mode === 'edit' && data.brief && typeof data.brief === 'object') {
-          mode = 'edit';
-          briefId = data.briefId ?? data.brief?.id ?? null;
-          const b = data.brief;
-          brief = {
-            companyName: b.companyName ?? '',
-            industry: b.industry ?? '',
-            senderName: b.senderName ?? '',
-            websiteUrl: b.websiteUrl ?? '',
-            actionMode: b.actionMode ?? 'save_to_drafts',
-            campaignGoal: b.campaignGoal ?? '',
-            valueProposition: b.valueProposition ?? '',
-            idealCustomerProfile: b.idealCustomerProfile ?? '',
-            toneOfVoice: b.toneOfVoice ?? 'professional',
-            negativeConstraints: b.negativeConstraints ?? '',
-            caseStudies: b.caseStudies ?? '',
-            signatureHtml: b.signatureHtml ?? '',
-            autoGenerateSignature: !!b.autoGenerateSignature,
-            warmupStrategy: b.warmupStrategy !== false,
-            authMethod: b.authMethod ?? 'nexus_lookalike_domain',
-            requestedDomain: b.requestedDomain ?? '',
-            imapHost: b.imapHost ?? '',
-            imapPort: b.imapPort ?? '993',
-            imapUser: b.imapUser ?? '',
-            imapPassword: '', // Nigdy nie prefilluj – hasło jest zaszyfrowane w KMS
-          };
-        }
+        mode = data.mode === 'edit' ? 'edit' : 'onboarding';
+
         stage = 'otp-email';
       })
       .catch(() => { stage = 'invalid'; errorMsg = 'Błąd połączenia z serwerem.'; });
@@ -124,11 +95,43 @@
       const res = await fetch('/api/onboarding/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, otp: otpInput, mode }),
+        body: JSON.stringify({ token, otp: otpInput, mode }), // tryb nadal wysyłany by pomieszać ślady starszym linkom jeżeli trzeba
       });
       const data = await res.json();
       if (!res.ok) { errorMsg = data.error || 'Błąd weryfikacji.'; return; }
       orderId = data.orderId;
+      mode = data.mode === 'edit' ? 'edit' : 'onboarding';
+
+      // Przypisanie obiektu Brief dla formularza, jeśli backend zwrócił je jako odpowiedź OTP.
+      if (mode === 'edit') {
+        briefId = data.briefId ?? null;
+        if (data.brief && typeof data.brief === 'object') {
+          const b = data.brief;
+          brief = {
+            companyName: b.companyName ?? '',
+            industry: b.industry ?? '',
+            senderName: b.senderName ?? '',
+            websiteUrl: b.websiteUrl ?? '',
+            actionMode: b.actionMode ?? 'save_to_drafts',
+            campaignGoal: b.campaignGoal ?? '',
+            valueProposition: b.valueProposition ?? '',
+            idealCustomerProfile: b.idealCustomerProfile ?? '',
+            toneOfVoice: b.toneOfVoice ?? 'professional',
+            negativeConstraints: b.negativeConstraints ?? '',
+            caseStudies: b.caseStudies ?? '',
+            signatureHtml: b.signatureHtml ?? '',
+            autoGenerateSignature: !!b.autoGenerateSignature,
+            warmupStrategy: b.warmupStrategy !== false,
+            authMethod: b.authMethod ?? 'nexus_lookalike_domain',
+            requestedDomain: b.requestedDomain ?? '',
+            imapHost: b.imapHost ?? '',
+            imapPort: b.imapPort ?? '993',
+            imapUser: b.imapUser ?? '',
+            imapPassword: '', // Nigdy nie prefilluj – hasło jest zawsze ukryte / KMS
+          };
+        }
+      }
+
       stage = 'brief';
     } catch { errorMsg = 'Błąd połączenia.'; }
     finally { otpVerifying = false; }
