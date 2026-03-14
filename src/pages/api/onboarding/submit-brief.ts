@@ -14,34 +14,34 @@ const fontsDir = path.resolve(__dirname, '../../../assets/fonts');
 const publicDir = path.resolve(__dirname, '../../../../public');
 
 async function generateBriefPdf(brief: Record<string, any>, order: Record<string, any>): Promise<Buffer> {
-  // Rejestracja fontów Inter. Wyciągnięte przez tworzeniem PDF żeby móc wykonać async bezpiecznie (bez craszy środowiska).
-  const interRegularPath = path.join(publicDir, 'fonts', 'Inter-Regular.ttf');
-  const interBoldPath = path.join(publicDir, 'fonts', 'Inter-Bold.ttf');
+  // Rejestracja fontów Roboto. Wyciągnięte przez tworzeniem PDF żeby móc wykonać async bezpiecznie (bez craszy środowiska).
+  const robotoRegularPath = path.join(publicDir, 'fonts', 'Roboto-Regular.ttf');
+  const robotoBoldPath = path.join(publicDir, 'fonts', 'Roboto-Bold.ttf');
   const siteUrl = import.meta.env.SITE_URL || 'https://nexusagent.pl';
 
-  let hasInter = false;
+  let hasRoboto = false;
   let regBuf: Buffer | null = null;
   let boldBuf: Buffer | null = null;
 
   try {
-    if (fs.existsSync(interRegularPath) && fs.existsSync(interBoldPath)) {
-      regBuf = fs.readFileSync(interRegularPath);
-      boldBuf = fs.readFileSync(interBoldPath);
-      hasInter = true;
+    if (fs.existsSync(robotoRegularPath) && fs.existsSync(robotoBoldPath)) {
+      regBuf = fs.readFileSync(robotoRegularPath);
+      boldBuf = fs.readFileSync(robotoBoldPath);
+      hasRoboto = true;
     } else {
       // Fallback Serverless
       const [regRes, boldRes] = await Promise.all([
-        fetch(`${siteUrl}/fonts/Inter-Regular.ttf`),
-        fetch(`${siteUrl}/fonts/Inter-Bold.ttf`)
+        fetch(`${siteUrl}/fonts/Roboto-Regular.ttf`),
+        fetch(`${siteUrl}/fonts/Roboto-Bold.ttf`)
       ]);
       if (regRes.ok && boldRes.ok) {
         regBuf = Buffer.from(await regRes.arrayBuffer());
         boldBuf = Buffer.from(await boldRes.arrayBuffer());
-        hasInter = true;
+        hasRoboto = true;
       }
     }
   } catch (e) {
-    console.warn('[submit-brief] Warning: Font Inter load failed, using Helvetica fallback. Error:', e);
+    console.warn('[submit-brief] Warning: Font Roboto load failed, using Helvetica fallback. Error:', e);
   }
 
   return new Promise((resolve, reject) => {
@@ -53,13 +53,13 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    if (hasInter && regBuf && boldBuf) {
-      doc.registerFont('Inter', regBuf);
-      doc.registerFont('Inter-Bold', boldBuf);
+    if (hasRoboto && regBuf && boldBuf) {
+      doc.registerFont('Roboto', regBuf);
+      doc.registerFont('Roboto-Bold', boldBuf);
     }
 
-    const fontRegular = hasInter ? 'Inter' : 'Helvetica';
-    const fontBold = hasInter ? 'Inter-Bold' : 'Helvetica-Bold';
+    const fontRegular = hasRoboto ? 'Roboto' : 'Helvetica';
+    const fontBold = hasRoboto ? 'Roboto-Bold' : 'Helvetica-Bold';
 
     const cyan = '#0ceaed';
     const purple = '#a855f7';
