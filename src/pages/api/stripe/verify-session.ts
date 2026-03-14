@@ -56,7 +56,7 @@ export const GET: APIRoute = async ({ url }) => {
     const billingPostalCode = address?.postal_code || '';
     const billingCountry = address?.country || 'PL';
 
-    // Pobierz orderNumber z Payload CMS
+    // ─── Payload: pobierz orderNumber + obsłuż slot increment ─────────────
     let orderNumber = '';
     try {
       const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
@@ -64,16 +64,47 @@ export const GET: APIRoute = async ({ url }) => {
       const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
 
+      // Sprawdź czy order już istnieje dla tego klienta
       const orderRes = await fetch(
         `${payloadUrl}/api/orders?where[customerEmail][equals]=${encodeURIComponent(customerEmail)}&limit=1&sort=-createdAt`,
         { headers: authHeaders }
       );
+
       if (orderRes.ok) {
         const orderData = await orderRes.json();
-        orderNumber = orderData.docs?.[0]?.orderNumber || '';
+        const existingOrder = orderData.docs?.[0];
+        orderNumber = existingOrder?.orderNumber || '';
+
+        // ─── Slot increment (tylko jeśli webhook jeszcze nie stworzył zamówienia) ─
+        // Jeśli order istnieje → webhook zdążył i już zinkrementował slot → SKIP
+        // Jeśli order nie istnieje → webhook jeszcze nie zadziałał → my inkrementujemy
+        if (!existingOrder) {
+          try {
+            const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
+              headers: authHeaders,
+            });
+            if (globalRes.ok) {
+              const globalData = await globalRes.json();
+              const currentUsed = globalData?.slots?.usedSlots ?? 0;
+              await fetch(`${payloadUrl}/api/globals/landing-page`, {
+                method: 'PATCH',
+                headers: authHeaders,
+                body: JSON.stringify({
+                  slots: {
+                    totalSlots: globalData?.slots?.totalSlots ?? 10,
+                    usedSlots: currentUsed + 1,
+                  },
+                }),
+              });
+              console.log(`[verify-session] Slot zinkrementowany (fallback — webhook nie zdążył). usedSlots: ${currentUsed} → ${currentUsed + 1}`);
+            }
+          } catch (slotErr) {
+            console.warn('[verify-session] Błąd inkrementu slotu:', slotErr);
+          }
+        }
       }
     } catch (e) {
-      console.warn('[verify-session] Nie udało się pobrać orderNumber z Payload:', e);
+      console.warn('[verify-session] Nie udało się obsłużyć Payload:', e);
     }
 
     return new Response(
