@@ -69,6 +69,7 @@ const ctaUrl = data?.ctaUrl || "#pricing";
       >
         <span class="size-2 bg-primary rounded-full animate-pulse mr-2"></span>
         <span
+          id="header-slot-counter"
           class="text-[10px] font-mono uppercase tracking-tighter text-slate-400"
           >{slotLabel}: {usedSlots}/{totalSlots}</span
         >
@@ -82,3 +83,25 @@ const ctaUrl = data?.ctaUrl || "#pricing";
     </div>
   </div>
 </header>
+
+<script>
+  // Dynamicznie aktualizuj licznik slotów w headerze z API (client-side)
+  async function refreshHeaderSlots() {
+    try {
+      const res = await fetch('/api/slots');
+      if (!res.ok) return;
+      const data = await res.json();
+      const el = document.getElementById('header-slot-counter');
+      if (el && data.total !== undefined && data.used !== undefined) {
+        // Zachowaj oryginalny label (tekst przed : )
+        const labelPart = el.textContent?.split(':')[0] ?? 'Dostępne sloty';
+        el.textContent = `${labelPart}: ${data.used}/${data.total}`;
+      }
+    } catch { /* silent fail */ }
+  }
+
+  // Inicjalne odświeżenie po załadowaniu
+  document.addEventListener('DOMContentLoaded', refreshHeaderSlots);
+  // Odświeżanie co 60 sekund
+  setInterval(refreshHeaderSlots, 60_000);
+</script>
