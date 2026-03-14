@@ -300,6 +300,22 @@ export const POST: APIRoute = async ({ request }) => {
     const billingCountry = address?.country || 'PL';
 
     try {
+      const stripeInvoiceId = typeof session.invoice === 'string' ? session.invoice : (session.invoice as any)?.id || '';
+
+      // 1. Inicjalny wpis payments (z danymi faktury od Stripe)
+      const initialPayment = {
+        stripeInvoiceId,
+        amount: monthlyAmount,
+        paidAt: new Date().toISOString(),
+        status: 'paid',
+        fakturowniaInvoiceId: '',
+        invoiceUrl: '',
+        invoicePdf: '',
+      };
+
+      // Zapisz zamówienie do Payload z danymi fakturowymi
+      // Inicjalizujemy payments pierwszym wpisem, ponieważ invoice.payment_succeeded
+      // może przyjść przed zapisem orderu w bazie i zostać zignorowany.
       const orderRes = await fetch(`${payloadUrl}/api/orders`, {
         method: 'POST',
         headers: authHeaders,
@@ -311,7 +327,7 @@ export const POST: APIRoute = async ({ request }) => {
           monthlyAmount,
           subscriptionStatus: 'active',
           onboardingToken,
-          payments: [],  // Będą uzupełniane przez invoice.payment_succeeded (unikamy duplikatów)
+          payments: [initialPayment],
           billingName,
           billingPhone,
           billingCompanyName,
@@ -327,12 +343,43 @@ export const POST: APIRoute = async ({ request }) => {
         console.error('[Webhook Stripe] Błąd zapisu Order:', await orderRes.text());
       }
 
-      // Odczytaj orderNumber z zapisanego dokumentu (do emaila onboardingowego)
+      // Odczytaj orderNumber i id z zapisanego dokumentu
       let orderNumber = '';
+      let orderId = '';
       try {
         const orderBody = await orderRes.json();
         orderNumber = orderBody?.doc?.orderNumber || orderBody?.orderNumber || '';
+        orderId = orderBody?.doc?.id || orderBody?.id || '';
       } catch { /* ignoruj */ }
+
+      // ─── Generuj pierwszą fakturę Fakturownia ──────────────────────────────
+      if (customerEmail && orderId && orderNumber) {
+        const clientData: FakturowniaClientData = {
+          companyName: billingCompanyName || billingName || customerEmail,
+          firstName: !billingCompanyName ? billingName.split(' ')[0] : '',
+          lastName: !billingCompanyName ? billingName.split(' ').slice(1).join(' ') : '',
+          email: customerEmail,
+          taxNo: billingNip,
+          street: billingStreet,
+          city: billingCity,
+          postCode: billingPostalCode,
+          country: billingCountry,
+          phone: billingPhone,
+        };
+
+        // KRYTYCZNE: await, serverless ginie przy return
+        await generateAndAttachInvoice({
+          orderId,
+          orderNumber,
+          paymentIndex: 0,
+          existingPayments: [initialPayment],
+          clientData,
+          dailyLimit,
+          monthlyAmount,
+          payloadUrl,
+          authHeaders,
+        });
+      }
 
       // UWAGA: aktualizacja slotów przeniesiona do verify-session.ts (idempotentna)
 
@@ -396,6 +443,15 @@ export const POST: APIRoute = async ({ request }) => {
             const orderId: string = order.id;
             const orderNumber: string = order.orderNumber || '';
             const customerEmail: string = order.customerEmail || '';
+            const existingPayments: any[] = order.payments || [];
+
+            // Zabezpieczenie przed duplikatem: sprawdź czy płatność o tym stripeInvoiceId już istnieje
+            if (existingPayments.some((p) => p.stripeInvoiceId === invoice.id)) {
+              console.log(`[Webhook Stripe] Płatność dla faktury ${invoice.id} już istnieje w systemie. Zignorowano.`);
+              return new Response(JSON.stringify({ received: true, note: 'Duplicate' }), {
+                status: 200, headers: { 'Content-Type': 'application/json' }
+              });
+            }
 
             // Nowy wpis payment
             const newPayment = {
@@ -410,7 +466,6 @@ export const POST: APIRoute = async ({ request }) => {
               ...(periodEnd ? { periodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
             };
 
-            const existingPayments: any[] = order.payments || [];
             const updatedPayments = [...existingPayments, newPayment];
             const newPaymentIndex = updatedPayments.length - 1;
 

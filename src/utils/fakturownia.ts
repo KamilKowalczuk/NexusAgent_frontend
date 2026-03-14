@@ -146,7 +146,6 @@ export async function createInvoice(params: FakturowniaInvoiceParams): Promise<F
     issue_date: today,
     sell_date: today,
     payment_to: paymentTo,
-    payment_kind: 'transfer',
     oid: params.orderNumber,
 
     // Dane sprzedawcy (pobierane z ustawień konta Fakturowni)
