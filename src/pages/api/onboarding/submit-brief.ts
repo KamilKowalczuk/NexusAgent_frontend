@@ -44,6 +44,20 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
     console.warn('[submit-brief] Warning: Font Roboto load failed, using Helvetica fallback. Error:', e);
   }
 
+  // ─── Logo ───
+  const logoPath = path.join(publicDir, 'logo.png');
+  let logoBuf: Buffer | null = null;
+  try {
+    if (fs.existsSync(logoPath)) {
+      logoBuf = fs.readFileSync(logoPath);
+    } else {
+      const logoRes = await fetch(`${siteUrl}/logo.png`);
+      if (logoRes.ok) logoBuf = Buffer.from(await logoRes.arrayBuffer());
+    }
+  } catch (e) {
+    console.warn('[submit-brief] Warning: Logo load failed, skipping.');
+  }
+
   return new Promise((resolve, reject) => {
     // margins bottom: 20 zapobiega pustej stronie przy doc.text(..., y: 810)
     const doc = new PDFDocument({ margins: { top: 50, bottom: 20, left: 50, right: 50 }, size: 'A4', bufferPages: true });
@@ -71,9 +85,8 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
     doc.rect(0, 0, 595, 842).fill(dark);
 
     // ─── Logo ───
-    const logoPath = path.join(publicDir, 'logo.png');
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 247, 30, { width: 100, height: 100 });
+    if (logoBuf) {
+      doc.image(logoBuf, 247, 30, { width: 100, height: 100 });
       doc.moveDown(5);
     }
 
