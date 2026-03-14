@@ -29,13 +29,14 @@
   // UI state
   let showWaitlist = $state(false);
   let isLoading = $state(false);
+  let termsAccepted = $state(false);
 
   function handleSliderInput(e: Event) {
     emailsPerDay = parseInt((e.target as HTMLInputElement).value);
   }
 
   async function handleActivate() {
-    if (isLoading) return;
+    if (isLoading || !termsAccepted) return;
     isLoading = true;
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -143,13 +144,46 @@
     {/if}
   </div>
 
+  <!-- Akceptacja regulaminu -->
+  {#if !slotsLoaded || availableSlots > 0}
+    <label class="flex items-start gap-3 mb-4 cursor-pointer group">
+      <div class="relative flex-shrink-0 mt-0.5">
+        <input
+          type="checkbox"
+          bind:checked={termsAccepted}
+          class="sr-only"
+          id="terms-checkbox"
+          aria-required="true"
+        />
+        <div
+          class="w-5 h-5 rounded border transition-all duration-200 flex items-center justify-center"
+          style="{termsAccepted
+            ? 'background:hsl(270,60%,50%);border-color:hsl(270,60%,50%);box-shadow:0 0 10px hsl(270,60%,35%);'
+            : 'background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.15);'}"
+        >
+          {#if termsAccepted}
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+              <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          {/if}
+        </div>
+      </div>
+      <span class="text-[10px] font-mono text-slate-500 uppercase tracking-wide leading-relaxed group-hover:text-slate-400 transition-colors">
+        Akceptuję <a href="/dokumenty/regulamin" target="_blank" class="text-cyan-500/70 hover:text-cyan-400 underline transition-colors">Regulamin</a> oraz
+        <a href="/dokumenty/polityka-prywatnosci" target="_blank" class="text-cyan-500/70 hover:text-cyan-400 underline transition-colors">Politykę Prywatności</a>
+        NEXUS Agent. Wyrażam zgodę na przetwarzanie danych osobowych w celu realizacji usługi.
+      </span>
+    </label>
+  {/if}
+
   <!-- CTA Button -->
   {#if !slotsLoaded || availableSlots > 0}
     <button
       onclick={handleActivate}
-      disabled={isLoading}
+      disabled={isLoading || !termsAccepted}
       class="w-full text-white font-display font-bold text-sm uppercase py-5 rounded-2xl transition-all duration-300 mt-auto disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
       style="background: linear-gradient(135deg, hsl(270, 60%, 45%), hsl(280, 70%, 55%)); box-shadow: 0 0 30px hsl(270, 60%, 30%), 0 0 60px hsl(270, 60%, 15%);"
+      title={!termsAccepted ? 'Zaakceptuj Regulamin i Politykę Prywatności aby kontynuować' : ''}
     >
       {#if isLoading}
         <span class="material-symbols-outlined animate-spin text-sm">sync</span>

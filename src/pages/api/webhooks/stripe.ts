@@ -289,7 +289,7 @@ export const POST: APIRoute = async ({ request }) => {
           const globalData = await globalRes.json();
           const currentUsed = globalData?.slots?.usedSlots ?? 0;
           await fetch(`${payloadUrl}/api/globals/landing-page`, {
-            method: 'POST',
+            method: 'PATCH',
             headers: authHeaders,
             body: JSON.stringify({
               slots: {
