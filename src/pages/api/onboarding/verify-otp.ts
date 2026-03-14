@@ -43,9 +43,10 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Jeśli nie znaleziono w onboardingToken, szukamy w editToken
+    // UWAGA: depth=2 — Payload zagnieżdźi obiekt Brief inline w order.brief
     if (!order) {
       const searchResEdit = await fetch(
-        `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
+        `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=2`,
         { headers: authHeaders }
       );
       if (searchResEdit.ok) {
@@ -111,39 +112,32 @@ export const POST: APIRoute = async ({ request }) => {
       body: JSON.stringify({ otpCode: null, otpExpiry: null }),
     });
 
-    // ─── Jeżeli edycja, pobieramy Brief osobnym zapytaniem ────────────────
+    // ─── Jeżeli edycja, brief jest już zagnieżdżony w order.brief (depth=2) ──
     let briefData: Record<string, unknown> | null = null;
     let briefId: string | number | null = null;
 
     if (finalMode === 'edit' && order.brief) {
-      // order.brief może być string/number (ID) przy depth=0, lub obiekt przy depth>0
-      briefId = typeof order.brief === 'object' && order.brief !== null
-        ? order.brief.id
-        : order.brief;
-
-      console.log(`[verify-otp] Pobieranie briefu ID=${briefId}...`);
-
-      if (briefId) {
-        const briefRes = await fetch(
-          `${payloadUrl}/api/briefs/${briefId}?depth=0`,
-          { headers: authHeaders }
-        );
-
-        console.log(`[verify-otp] Brief fetch status: ${briefRes.status}`);
-
+      // Przy depth=2 order.brief to pełny obiekt z danymi Brief
+      if (typeof order.brief === 'object' && order.brief !== null) {
+        briefId = order.brief.id;
+        briefData = order.brief as Record<string, unknown>;
+        console.log(`[verify-otp] Brief pobrany inline (depth=2), companyName=${briefData?.companyName}`);
+      } else {
+        // Fallback: order.brief to nagi ID (gdyby depth się nie załadował)
+        briefId = order.brief;
+        console.warn(`[verify-otp] Brief jest samym ID (${briefId}), depth=2 nie zadziałał. Próbuję osobny fetch...`);
+        
+        const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}?depth=0`, { headers: authHeaders });
+        console.log(`[verify-otp] Brief fallback fetch status: ${briefRes.status}`);
         if (briefRes.ok) {
-          const briefJson = await briefRes.json();
-          // Payload findByID zwraca dokument bezpośrednio (nie w .doc)
-          briefData = briefJson as Record<string, unknown>;
-          console.log(`[verify-otp] Brief pobrany pomyślnie, companyName=${briefData?.companyName}`);
-        } else {
-          const errText = await briefRes.text();
-          console.error(`[verify-otp] Nie udało się pobrać brief ${briefId}: ${errText}`);
+          briefData = await briefRes.json() as Record<string, unknown>;
         }
       }
     }
 
-    const responsePayload = {
+    console.log(`[verify-otp] Odpowiedź: mode=${finalMode}, briefId=${briefId}, hasBrief=${!!briefData}`);
+
+    return new Response(JSON.stringify({
       verified: true,
       mode: finalMode,
       orderId: order.id,
@@ -152,11 +146,7 @@ export const POST: APIRoute = async ({ request }) => {
       monthlyAmount: order.monthlyAmount,
       briefId,
       brief: briefData,
-    };
-
-    console.log(`[verify-otp] Odpowiedź: mode=${finalMode}, briefId=${briefId}, hasBrief=${!!briefData}`);
-
-    return new Response(JSON.stringify(responsePayload), {
+    }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
