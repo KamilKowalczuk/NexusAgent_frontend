@@ -98,13 +98,11 @@
         body: JSON.stringify({ token, otp: otpInput }),
       });
       const data = await res.json();
-      console.log('[OnboardingFlow] verify-otp response:', JSON.stringify(data, null, 2));
-
+      
       if (!res.ok) { errorMsg = data.error || 'Błąd weryfikacji.'; return; }
 
       orderId = data.orderId;
       mode = data.mode === 'edit' ? 'edit' : 'onboarding';
-      console.log('[OnboardingFlow] Detected mode:', mode, 'briefId:', data.briefId, 'hasBrief:', !!data.brief);
 
       // Przypisanie obiektu Brief dla formularza, jeśli backend zwrócił je jako odpowiedź OTP.
       if (mode === 'edit' && data.brief && typeof data.brief === 'object') {
@@ -132,7 +130,6 @@
           imapUser: b.imapUser ?? '',
           imapPassword: '', // Nigdy nie prefilluj – hasło jest zawsze ukryte / KMS
         };
-        console.log('[OnboardingFlow] Brief załadowany:', brief.companyName, brief.industry);
       }
 
       stage = 'brief';
@@ -577,6 +574,9 @@
           {#if submitting}
             <span class="material-symbols-outlined animate-spin">sync</span>
             Zapisywanie i generowanie PDF...
+          {:else if mode === 'edit'}
+            <span class="material-symbols-outlined">save</span>
+            Zapisz zmiany w Briefie
           {:else}
             <span class="material-symbols-outlined">rocket_launch</span>
             Uruchom NEXUS · Wyślij Brief
@@ -584,7 +584,7 @@
         </button>
 
         <p class="text-center text-slate-600 text-[10px] font-mono uppercase tracking-widest">
-          Po wysłaniu otrzymasz potwierdzenie i PDF na email · Link wygasa jednorazowo
+          Po wysłaniu otrzymasz potwierdzenie i PDF na email · {#if mode === 'edit'}Możesz edytować ten formularz wielokrotnie używając nowo wygenerowanych linków{:else}Link wygasa jednorazowo{/if}
         </p>
       </div>
     </form>
