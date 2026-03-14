@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import crypto from 'crypto';
+import { createInvoice, sendInvoiceByEmail, type FakturowniaClientData } from '../../../utils/fakturownia';
 
 export const prerender = false;
 
@@ -188,6 +189,66 @@ function buildOnboardingEmail(params: {
   };
 }
 
+// ─── Helper: generuj fakturę i uzupełnij wpis payments ───────────────────────
+
+async function generateAndAttachInvoice(params: {
+  orderId: string;
+  orderNumber: string;
+  paymentIndex: number;           // indeks w tablicy payments do uzupełnienia
+  existingPayments: any[];
+  clientData: FakturowniaClientData;
+  dailyLimit: number;
+  monthlyAmount: number;
+  payloadUrl: string;
+  authHeaders: Record<string, string>;
+}): Promise<void> {
+  const {
+    orderId, orderNumber, paymentIndex, existingPayments,
+    clientData, dailyLimit, monthlyAmount, payloadUrl, authHeaders,
+  } = params;
+
+  try {
+    const invoice = await createInvoice({
+      client: clientData,
+      orderNumber,
+      serviceName: `NEXUS Agent – ${dailyLimit} maili/dzień – Plan miesięczny`,
+      totalPriceGross: monthlyAmount,
+      taxRate: 23,
+    });
+
+    if (!invoice) {
+      console.error('[Webhook] Fakturownia: nie udało się wygenerować faktury dla order', orderNumber);
+      return;
+    }
+
+    // Wyślij fakturę emailem przez Fakturownia (w tle)
+    sendInvoiceByEmail(invoice.id).catch((e) =>
+      console.error('[Webhook] Fakturownia sendByEmail error:', e),
+    );
+
+    // Uzupełnij wpis payments o dane faktury
+    const updatedPayments = [...existingPayments];
+    if (updatedPayments[paymentIndex]) {
+      updatedPayments[paymentIndex] = {
+        ...updatedPayments[paymentIndex],
+        fakturowniaInvoiceId: String(invoice.id),
+        invoiceUrl: invoice.viewUrl,
+        invoicePdf: invoice.pdfUrl,
+      };
+    }
+
+    await fetch(`${payloadUrl}/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({ payments: updatedPayments }),
+    });
+
+    console.log(`[Webhook] Fakturownia: faktura ${invoice.id} wygenerowana dla order ${orderNumber}`);
+  } catch (err) {
+    console.error('[Webhook] generateAndAttachInvoice error:', err);
+  }
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const stripeKey = import.meta.env.STRIPE_SECRET_KEY;
   const webhookSecret = import.meta.env.STRIPE_WEBHOOK_SECRET;
@@ -245,6 +306,17 @@ export const POST: APIRoute = async ({ request }) => {
     const billingCountry = address?.country || 'PL';
 
     try {
+      // 1. Inicjalny wpis payments (bez faktury na razie – invoice.payment_succeeded przyjdzie osobno)
+      const initialPayment = {
+        stripeInvoiceId: '',
+        amount: monthlyAmount,
+        paidAt: new Date().toISOString(),
+        status: 'paid',
+        fakturowniaInvoiceId: '',
+        invoiceUrl: '',
+        invoicePdf: '',
+      };
+
       // Zapisz zamówienie do Payload z danymi fakturowymi
       const orderRes = await fetch(`${payloadUrl}/api/orders`, {
         method: 'POST',
@@ -257,6 +329,7 @@ export const POST: APIRoute = async ({ request }) => {
           monthlyAmount,
           subscriptionStatus: 'active',
           onboardingToken,
+          payments: [initialPayment],
           // Dane do faktury
           billingName,
           billingPhone,
@@ -273,12 +346,43 @@ export const POST: APIRoute = async ({ request }) => {
         console.error('[Webhook Stripe] Błąd zapisu Order:', await orderRes.text());
       }
 
-      // Odczytaj orderNumber z zapisanego dokumentu
+      // Odczytaj orderNumber i orderId z zapisanego dokumentu
       let orderNumber = '';
+      let orderId = '';
       try {
         const orderBody = await orderRes.json();
         orderNumber = orderBody?.doc?.orderNumber || orderBody?.orderNumber || '';
-      } catch { /* ignoruj — email pojdzie bez numeru */ }
+        orderId = orderBody?.doc?.id || orderBody?.id || '';
+      } catch { /* ignoruj */ }
+
+      // ─── Generuj fakturę przez Fakturownia (asynchronicznie) ─────────────
+      if (customerEmail && orderId && orderNumber) {
+        const clientData: FakturowniaClientData = {
+          companyName: billingCompanyName || billingName || customerEmail,
+          firstName: !billingCompanyName ? billingName.split(' ')[0] : '',
+          lastName: !billingCompanyName ? billingName.split(' ').slice(1).join(' ') : '',
+          email: customerEmail,
+          taxNo: billingNip,
+          street: billingStreet,
+          city: billingCity,
+          postCode: billingPostalCode,
+          country: billingCountry,
+          phone: billingPhone,
+        };
+
+        // Nie awajtuj – nie blokuj odpowiedzi webhooka
+        generateAndAttachInvoice({
+          orderId,
+          orderNumber,
+          paymentIndex: 0,
+          existingPayments: [initialPayment],
+          clientData,
+          dailyLimit,
+          monthlyAmount,
+          payloadUrl,
+          authHeaders,
+        }).catch((e: unknown) => console.error('[Webhook] generateAndAttachInvoice (checkout) error:', e));
+      }
 
       // UWAGA: aktualizacja slotów usunięta z webhooku.
       // Odpowiedzialność przeniesiona do verify-session.ts (idempotentna, przez stripeSubscriptionId).
@@ -319,7 +423,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
-  // --- invoice.payment_succeeded – dodaj wpis do tablicy payments ---
+  // --- invoice.payment_succeeded – dodaj wpis do tablicy payments + faktura ---
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as Stripe.Invoice;
     const subscriptionId = (invoice as any).subscription as string;
@@ -337,6 +441,8 @@ export const POST: APIRoute = async ({ request }) => {
           if (searchData.docs?.length > 0) {
             const order = searchData.docs[0];
             const orderId = order.id;
+            const orderNumber = order.orderNumber || '';
+            const customerEmail = order.customerEmail || '';
 
             // Nowy wpis w tablicy payments
             const newPayment = {
@@ -344,23 +450,57 @@ export const POST: APIRoute = async ({ request }) => {
               amount: Math.round(((invoice as any).amount_paid || 0) / 100),
               paidAt: new Date().toISOString(),
               status: 'paid',
+              fakturowniaInvoiceId: '',
+              invoiceUrl: '',
+              invoicePdf: '',
               ...(periodStart ? { periodStart: new Date(periodStart * 1000).toISOString() } : {}),
               ...(periodEnd ? { periodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
-              invoiceUrl: '',   // Podkładka pod API fakturowe
-              invoicePdf: '',   // Podkładka pod API fakturowe
             };
 
             const existingPayments = order.payments || [];
+            const updatedPayments = [...existingPayments, newPayment];
+            const newPaymentIndex = updatedPayments.length - 1;
 
             await fetch(`${payloadUrl}/api/orders/${orderId}`, {
               method: 'PATCH',
               headers: authHeaders,
               body: JSON.stringify({
                 subscriptionStatus: 'active',
-                payments: [...existingPayments, newPayment],
+                payments: updatedPayments,
                 ...(periodEnd ? { currentPeriodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
               }),
             });
+
+            // ─── Generuj fakturę przez Fakturownia ────────────────────────
+            if (customerEmail && orderId && orderNumber) {
+              const clientData: FakturowniaClientData = {
+                companyName: order.billingCompanyName || order.billingName || customerEmail,
+                firstName: !order.billingCompanyName ? (order.billingName || '').split(' ')[0] : '',
+                lastName: !order.billingCompanyName ? (order.billingName || '').split(' ').slice(1).join(' ') : '',
+                email: customerEmail,
+                taxNo: order.billingNip || '',
+                street: order.billingStreet || '',
+                city: order.billingCity || '',
+                postCode: order.billingPostalCode || '',
+                country: order.billingCountry || 'PL',
+                phone: order.billingPhone || '',
+              };
+
+              // Refresh payments po PATCH
+              const refreshedPayments = [...updatedPayments];
+
+              generateAndAttachInvoice({
+                orderId,
+                orderNumber,
+                paymentIndex: newPaymentIndex,
+                existingPayments: refreshedPayments,
+                clientData,
+                dailyLimit: order.dailyLimit || 20,
+                monthlyAmount: Math.round(((invoice as any).amount_paid || 0) / 100) || order.monthlyAmount || 1999,
+                payloadUrl,
+                authHeaders,
+              }).catch((e) => console.error('[Webhook] generateAndAttachInvoice (invoice) error:', e));
+            }
           }
         }
       } catch (err) {
