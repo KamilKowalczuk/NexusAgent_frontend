@@ -164,6 +164,18 @@ export const POST: APIRoute = async ({ request }) => {
       delete sanitized.imapPassword;
     }
 
+    // ─── DEBUG LOG (produkcja) ───
+    console.log('[submit-brief] DEBUG:', JSON.stringify({
+      payloadUrl,
+      hasApiKey: !!apiKey,
+      apiKeyFirst8: apiKey ? apiKey.substring(0, 8) + '...' : 'BRAK',
+      mode,
+      briefId,
+      orderHasBrief: !!order.brief,
+      orderId,
+      sanitizedKeys: Object.keys(sanitized),
+    }));
+
     // Tryb edycji – aktualizujemy istniejący brief
     if (mode === 'edit') {
       if (!briefId || !order.brief) {
@@ -180,10 +192,10 @@ export const POST: APIRoute = async ({ request }) => {
 
       if (!patchBriefRes.ok) {
         const errText = await patchBriefRes.text();
-        console.error('[submit-brief] Błąd edycji Brief:', errText);
+        console.error('[submit-brief] PATCH failed:', patchBriefRes.status, errText);
         return new Response(JSON.stringify({
           error: 'Błąd zapisu briefu',
-          details: errText.slice(0, 300),
+          details: errText.slice(0, 500),
         }), {
           status: 500, headers: { 'Content-Type': 'application/json' },
         });
@@ -198,6 +210,8 @@ export const POST: APIRoute = async ({ request }) => {
         });
       }
 
+      console.log('[submit-brief] POST body:', JSON.stringify(sanitized).substring(0, 500));
+
       const briefRes = await fetch(`${payloadUrl}/api/briefs`, {
         method: 'POST',
         headers: authHeaders,
@@ -206,10 +220,10 @@ export const POST: APIRoute = async ({ request }) => {
 
       if (!briefRes.ok) {
         const errText = await briefRes.text();
-        console.error('[submit-brief] Błąd tworzenia Brief:', errText);
+        console.error('[submit-brief] POST failed:', briefRes.status, errText);
         return new Response(JSON.stringify({ 
           error: 'Błąd zapisu briefu',
-          details: errText.slice(0, 300) 
+          details: errText.slice(0, 500) 
         }), {
           status: 500, headers: { 'Content-Type': 'application/json' },
         });
@@ -219,14 +233,18 @@ export const POST: APIRoute = async ({ request }) => {
       briefId = briefDoc.doc?.id || briefDoc.id;
 
       // BURN AFTER READING: powiąż Brief z Order i zablokuj token onboardingowy
-      await fetch(`${payloadUrl}/api/orders/${orderId}`, {
+      const linkRes = await fetch(`${payloadUrl}/api/orders/${orderId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           brief: briefId,
           onboardingToken: null, // unieważnij token
         }),
       });
+
+      if (!linkRes.ok) {
+        console.error('[submit-brief] Order link PATCH failed:', linkRes.status, await linkRes.text());
+      }
 
       console.log(`[submit-brief] Brief ${briefId} zapisany i token unieważniony ✓`);
     }
