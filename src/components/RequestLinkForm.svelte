@@ -208,7 +208,9 @@
                 bind:value={orderNumber}
                 required
                 placeholder="NX-2026-NNNNN"
-                pattern="NX-\d{4}-\d{5}"
+                oninput={(e) => { orderNumber = (e.target as HTMLInputElement).value.toUpperCase(); }}
+                autocomplete="off"
+                spellcheck={false}
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus:bg-white/8 transition-all font-mono uppercase"
               />
               <div class="text-[10px] text-slate-600 mt-1.5 font-mono">
