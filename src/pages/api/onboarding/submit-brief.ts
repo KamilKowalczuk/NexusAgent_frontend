@@ -142,11 +142,23 @@ export const POST: APIRoute = async ({ request }) => {
 
     let briefId = existingBriefId as string | undefined;
 
-    // Sanityzacja briefData – usuń pola które mogą zepsuć zapis
+    // Sanityzacja briefData – usuń pola, które mogą zepsuć zapis Payload CMS przy operacji PATCH/POST
     const sanitized = { ...briefData } as Record<string, unknown>;
-    delete sanitized.id;
-    delete sanitized.createdAt;
-    delete sanitized.updatedAt;
+    
+    // Lista pól zarządzanych wewnętrznie przez CMS:
+    const fieldsToDrop = [
+      'id', 'createdAt', 'updatedAt', 'globalType', 
+      '_status', '_isTitle', '_magic', 'sizes', 
+      'filename', 'mimeType', 'filesize', 'url'
+    ];
+    
+    for (const field of fieldsToDrop) {
+      if (field in sanitized) {
+        delete sanitized[field];
+      }
+    }
+
+    // Specyficzne traktowanie hasła IMAP zabezpieczanego w Cloud KMS (jeśli jest to pusta wartość lub "przedszyfrowany" marker - zignoruj)
     const placeholder = '[ZASZYFROWANE PRZEZ GOOGLE KMS]';
     if (sanitized.imapPassword === placeholder || !String(sanitized.imapPassword || '').trim()) {
       delete sanitized.imapPassword;

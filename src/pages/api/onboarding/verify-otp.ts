@@ -104,15 +104,22 @@ export const POST: APIRoute = async ({ request }) => {
       body: JSON.stringify({ otpCode: null, otpExpiry: null }),
     });
 
-    // Jeżeli edycja, pobieramy Brief
+    // Jeżeli edycja, pobieramy Brief osobnym zapytaniem na wszelki wypadek
     let briefData: Record<string, unknown> | null = null;
     let briefId = null;
     if (finalMode === 'edit' && order.brief) {
-      briefId = typeof order.brief === 'object' ? order.brief.id : order.brief;
-      const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}`, { headers: authHeaders });
-      if (briefRes.ok) {
-        const briefJson = await briefRes.json();
-        briefData = (briefJson.doc ?? briefJson) as Record<string, unknown>;
+      // W zależności od 'depth' zapytania Payload wrzuca w order.brief albo obiekt, albo sam string (Id).
+      briefId = typeof order.brief === 'object' && order.brief !== null ? order.brief.id : order.brief;
+      
+      if (briefId) {
+        const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}?depth=0`, { headers: authHeaders });
+        if (briefRes.ok) {
+          const briefJson = await briefRes.json();
+          // Payload w standardowym findByID zwraca dokument od razu (nie briefJson.doc), bierzemy doc jako awaryjne wyciąganie
+          briefData = (briefJson.doc ?? briefJson) as Record<string, unknown>;
+        } else {
+          console.error(`[verify-otp] Nie udało się dociągnąć struktury brief dla id ${briefId}`);
+        }
       }
     }
 

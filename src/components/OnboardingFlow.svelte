@@ -64,7 +64,7 @@
         customerEmail = data.customerEmail;
         dailyLimit = data.dailyLimit;
         monthlyAmount = data.monthlyAmount;
-        emailInput = data.customerEmail;
+        // emailInput pozostaje pusty - wymóg zabezpieczenia, klient wpisuje go sam
         mode = data.mode === 'edit' ? 'edit' : 'onboarding';
 
         stage = 'otp-email';
