@@ -95,8 +95,8 @@ export const POST: APIRoute = async ({ request }) => {
     const order = searchData.docs?.[0];
 
     if (!order) {
-      // Zamówienie nie istnieje — nie ujawniamy tego wprost
-      return json({ ...SAFE_RESPONSE, _state: 'not_found' }, 200);
+      // Zamówienie nie istnieje — informujemy użytkownika
+      return json({ ok: false, state: 'not_found' }, 200);
     }
 
     const resend = resendKey ? new Resend(resendKey) : null;

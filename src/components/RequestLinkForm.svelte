@@ -48,7 +48,9 @@
       if (res.status === 429) {
         rateLimitMinutes = data.resetInMinutes || 10;
         status = "rate_limit";
-      } else if (res.ok) {
+      } else if (res.ok && data.ok === false && data.state === "not_found") {
+        status = "not_found";
+      } else if (res.ok && data.ok !== false) {
         status = "success";
       } else {
         status = "error";
@@ -169,6 +171,38 @@
               >Zamknij</button
             >
           </div>
+        {:else if status === 'not_found'}
+          <!-- Stan: brak zamówienia -->
+          <div class="text-center py-6">
+            <div class="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="#ef4444" stroke-width="1.5"/>
+                <path d="M12 8v5M12 16v.5" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p class="text-white font-bold text-lg mb-2">Nie znaleziono zamówienia</p>
+            <p class="text-slate-400 text-sm mb-6">
+              Nie znaleźliśmy zamówienia z podanym adresem email i numerem zamówienia.
+              Sprawdź dane lub utwórz nowe zamówienie.
+            </p>
+            <div class="flex flex-col gap-3">
+              <a
+                href="/#pricing"
+                onclick={close}
+                class="block w-full py-3 rounded-2xl font-black text-sm uppercase tracking-widest text-white text-center transition-all"
+                style="background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: 0 0 20px rgba(168,85,247,0.3);"
+              >
+                ⚡ Kup dostęp do NEXUS
+              </a>
+              <button
+                onclick={() => { status = 'idle'; }}
+                class="w-full py-2.5 rounded-2xl border border-white/10 text-slate-400 text-sm hover:text-white hover:border-white/25 transition-all"
+              >
+                Spróbuj ponownie
+              </button>
+            </div>
+          </div>
+
         {:else}
           <!-- Formularz -->
           <p class="text-slate-400 text-sm mb-6 leading-relaxed">
