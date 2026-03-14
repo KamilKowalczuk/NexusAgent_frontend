@@ -210,7 +210,10 @@ export const POST: APIRoute = async ({ request }) => {
       if (!briefRes.ok) {
         const errText = await briefRes.text();
         console.error('[submit-brief] Błąd tworzenia Brief:', errText);
-        return new Response(JSON.stringify({ error: 'Błąd zapisu briefu' }), {
+        return new Response(JSON.stringify({ 
+          error: 'Błąd zapisu briefu',
+          details: errText.slice(0, 300) 
+        }), {
           status: 500, headers: { 'Content-Type': 'application/json' },
         });
       }
