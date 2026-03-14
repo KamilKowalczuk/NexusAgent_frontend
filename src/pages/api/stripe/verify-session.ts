@@ -56,55 +56,79 @@ export const GET: APIRoute = async ({ url }) => {
     const billingPostalCode = address?.postal_code || '';
     const billingCountry = address?.country || 'PL';
 
-    // ─── Payload: pobierz orderNumber + obsłuż slot increment ─────────────
+    // ─── Payload: pobierz orderNumber + idempotentny increment slotów ────────
     let orderNumber = '';
+    const stripeSubscriptionId =
+      typeof session.subscription === 'string'
+        ? session.subscription
+        : (session.subscription as any)?.id || '';
+
     try {
       const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
       const apiKey = import.meta.env.PAYLOAD_API_KEY;
       const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
 
-      // Sprawdź czy order już istnieje dla tego klienta
-      const orderRes = await fetch(
-        `${payloadUrl}/api/orders?where[customerEmail][equals]=${encodeURIComponent(customerEmail)}&limit=1&sort=-createdAt`,
-        { headers: authHeaders }
-      );
-
-      if (orderRes.ok) {
-        const orderData = await orderRes.json();
-        const existingOrder = orderData.docs?.[0];
-        orderNumber = existingOrder?.orderNumber || '';
-
-        // ─── Slot increment (tylko jeśli webhook jeszcze nie stworzył zamówienia) ─
-        // Jeśli order istnieje → webhook zdążył i już zinkrementował slot → SKIP
-        // Jeśli order nie istnieje → webhook jeszcze nie zadziałał → my inkrementujemy
-        if (!existingOrder) {
-          try {
-            const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
-              headers: authHeaders,
-            });
-            if (globalRes.ok) {
-              const globalData = await globalRes.json();
-              const currentUsed = globalData?.slots?.usedSlots ?? 0;
-              await fetch(`${payloadUrl}/api/globals/landing-page`, {
-                method: 'PATCH',
-                headers: authHeaders,
-                body: JSON.stringify({
-                  slots: {
-                    totalSlots: globalData?.slots?.totalSlots ?? 10,
-                    usedSlots: currentUsed + 1,
-                  },
-                }),
-              });
-              console.log(`[verify-session] Slot zinkrementowany (fallback — webhook nie zdążył). usedSlots: ${currentUsed} → ${currentUsed + 1}`);
-            }
-          } catch (slotErr) {
-            console.warn('[verify-session] Błąd inkrementu slotu:', slotErr);
-          }
+      // Sprawdź czy order dla tej konkretnej subskrypcji już istnieje
+      // (stripeSubscriptionId jest unikalny — bezpieczny klucz idempotności)
+      let orderExistsForThisSub = false;
+      if (stripeSubscriptionId) {
+        const subCheckRes = await fetch(
+          `${payloadUrl}/api/orders?where[stripeSubscriptionId][equals]=${encodeURIComponent(stripeSubscriptionId)}&limit=1`,
+          { headers: authHeaders }
+        );
+        if (subCheckRes.ok) {
+          const subCheckData = await subCheckRes.json();
+          const existingOrder = subCheckData.docs?.[0];
+          orderExistsForThisSub = !!existingOrder;
+          orderNumber = existingOrder?.orderNumber || '';
         }
       }
+
+      // Fallback: jeśli nie ma subscriptionId, szukaj po emailu
+      if (!orderNumber && customerEmail) {
+        const emailCheckRes = await fetch(
+          `${payloadUrl}/api/orders?where[customerEmail][equals]=${encodeURIComponent(customerEmail)}&limit=1&sort=-createdAt`,
+          { headers: authHeaders }
+        );
+        if (emailCheckRes.ok) {
+          const emailCheckData = await emailCheckRes.json();
+          orderNumber = emailCheckData.docs?.[0]?.orderNumber || '';
+        }
+      }
+
+      // ─── Idempotentny increment slotu ────────────────────────────────────
+      // Inkrementuj TYLKO gdy order z tym subscriptionId jeszcze nie istnieje
+      // (= strona dziękujemy załadowana przed webhookiem LUB webhook nie zadziałał)
+      if (!orderExistsForThisSub) {
+        const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
+          headers: authHeaders,
+        });
+        if (globalRes.ok) {
+          const globalData = await globalRes.json();
+          const currentUsed = globalData?.slots?.usedSlots ?? 0;
+          const patchRes = await fetch(`${payloadUrl}/api/globals/landing-page`, {
+            method: 'PATCH',
+            headers: authHeaders,
+            body: JSON.stringify({
+              slots: {
+                totalSlots: globalData?.slots?.totalSlots ?? 10,
+                usedSlots: currentUsed + 1,
+              },
+            }),
+          });
+          if (patchRes.ok) {
+            console.log(`[verify-session] usedSlots zinkrementowany: ${currentUsed} → ${currentUsed + 1} (sub: ${stripeSubscriptionId || 'brak'})`);
+          } else {
+            const errText = await patchRes.text();
+            console.error('[verify-session] PATCH global failed:', patchRes.status, errText);
+          }
+        }
+      } else {
+        console.log(`[verify-session] Slot SKIP — order dla sub ${stripeSubscriptionId} już istnieje.`);
+      }
     } catch (e) {
-      console.warn('[verify-session] Nie udało się obsłużyć Payload:', e);
+      console.error('[verify-session] Błąd obsługi Payload:', e);
     }
 
     return new Response(

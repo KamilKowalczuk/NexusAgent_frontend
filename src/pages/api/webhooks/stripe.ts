@@ -276,32 +276,12 @@ export const POST: APIRoute = async ({ request }) => {
       // Odczytaj orderNumber z zapisanego dokumentu
       let orderNumber = '';
       try {
-        const orderDoc = await orderRes.clone().json();
-        orderNumber = orderDoc?.doc?.orderNumber || orderDoc?.orderNumber || '';
+        const orderBody = await orderRes.json();
+        orderNumber = orderBody?.doc?.orderNumber || orderBody?.orderNumber || '';
       } catch { /* ignoruj — email pojdzie bez numeru */ }
 
-      // Aktualizuj sloty w LandingPage global
-      try {
-        const globalRes = await fetch(`${payloadUrl}/api/globals/landing-page?depth=0`, {
-          headers: authHeaders,
-        });
-        if (globalRes.ok) {
-          const globalData = await globalRes.json();
-          const currentUsed = globalData?.slots?.usedSlots ?? 0;
-          await fetch(`${payloadUrl}/api/globals/landing-page`, {
-            method: 'PATCH',
-            headers: authHeaders,
-            body: JSON.stringify({
-              slots: {
-                totalSlots: globalData?.slots?.totalSlots ?? 10,
-                usedSlots: currentUsed + 1,
-              },
-            }),
-          });
-        }
-      } catch (slotErr) {
-        console.warn('[Webhook Stripe] Błąd aktualizacji slotów:', slotErr);
-      }
+      // UWAGA: aktualizacja slotów usunięta z webhooku.
+      // Odpowiedzialność przeniesiona do verify-session.ts (idempotentna, przez stripeSubscriptionId).
 
       // Wyślij email onboardingowy przez Resend
       if (resendKey && customerEmail) {
