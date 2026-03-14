@@ -29,7 +29,6 @@ function buildOnboardingEmail(params: {
   const { token, dailyLimit, monthlyAmount, siteUrl, billingName, billingPhone, billingCompanyName, billingNip, billingStreet, billingCity, billingPostalCode, billingCountry, orderNumber } = params;
   const link = `${siteUrl}/onboarding/${token}`;
 
-  // Buduj sekcję danych do faktury (tylko jeśli cokolwiek wypełnione)
   const hasBilling = billingCompanyName || billingNip || billingStreet;
   const billingHtml = hasBilling ? `
               <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(12,234,237,0.05);border:1px solid rgba(12,234,237,0.2);border-radius:12px;padding:16px;margin-bottom:24px;">
@@ -95,7 +94,6 @@ function buildOnboardingEmail(params: {
                 Na jego podstawie skonfigurujemy cały system pod Twój biznes.
               </p>
 
-              <!-- Plan details -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:24px;">
                 <tr>
                   <td style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -115,10 +113,8 @@ function buildOnboardingEmail(params: {
                 </tr>
               </table>
 
-              <!-- Dane do faktury -->
               ${billingHtml}
 
-              <!-- Numer zamówienia -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(12,234,237,0.04);border:1px solid rgba(12,234,237,0.15);border-radius:12px;padding:16px;margin-bottom:24px;">
                 <tr>
                   <td>
@@ -129,7 +125,6 @@ function buildOnboardingEmail(params: {
                 </tr>
               </table>
 
-              <!-- CTA -->
               <div style="text-align:center;margin-bottom:32px;">
                 <a href="${link}"
                    style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.1em;padding:16px 40px;border-radius:100px;text-decoration:none;box-shadow:0 0 30px rgba(168,85,247,0.4);">
@@ -137,7 +132,6 @@ function buildOnboardingEmail(params: {
                 </a>
               </div>
 
-              <!-- Security notice -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px;margin-bottom:24px;">
                 <tr>
                   <td>
@@ -151,26 +145,16 @@ function buildOnboardingEmail(params: {
                 </tr>
               </table>
 
-              <!-- Steps -->
               <div style="font-size:12px;color:#64748b;line-height:1.8;">
-                <div style="margin-bottom:6px;">
-                  <span style="color:#0ceaed;font-family:monospace;">01</span> &nbsp; Weryfikacja tożsamości przez OTP (e-mail)
-                </div>
-                <div style="margin-bottom:6px;">
-                  <span style="color:#0ceaed;font-family:monospace;">02</span> &nbsp; Wypełnienie Briefu Wdrożeniowego (~10 min)
-                </div>
-                <div style="margin-bottom:6px;">
-                  <span style="color:#0ceaed;font-family:monospace;">03</span> &nbsp; Inicjalizacja agenta (24-48h)
-                </div>
-                <div>
-                  <span style="color:#0ceaed;font-family:monospace;">04</span> &nbsp; NEXUS startuje kampanię
-                </div>
+                <div style="margin-bottom:6px;"><span style="color:#0ceaed;font-family:monospace;">01</span> &nbsp; Weryfikacja tożsamości przez OTP (e-mail)</div>
+                <div style="margin-bottom:6px;"><span style="color:#0ceaed;font-family:monospace;">02</span> &nbsp; Wypełnienie Briefu Wdrożeniowego (~10 min)</div>
+                <div style="margin-bottom:6px;"><span style="color:#0ceaed;font-family:monospace;">03</span> &nbsp; Inicjalizacja agenta (24-48h)</div>
+                <div><span style="color:#0ceaed;font-family:monospace;">04</span> &nbsp; NEXUS startuje kampanię</div>
               </div>
 
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
             <td style="padding:24px 40px;text-align:center;">
               <div style="font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em;color:#334155;">
@@ -190,11 +174,13 @@ function buildOnboardingEmail(params: {
 }
 
 // ─── Helper: generuj fakturę i uzupełnij wpis payments ───────────────────────
+// WAŻNE: Ta funkcja musi być AWAJTOWANA przez wywołującego.
+// Fire-and-forget nie działa w Netlify/serverless – środowisko ginie po return.
 
 async function generateAndAttachInvoice(params: {
   orderId: string;
   orderNumber: string;
-  paymentIndex: number;           // indeks w tablicy payments do uzupełnienia
+  paymentIndex: number;
   existingPayments: any[];
   clientData: FakturowniaClientData;
   dailyLimit: number;
@@ -221,10 +207,11 @@ async function generateAndAttachInvoice(params: {
       return;
     }
 
-    // Wyślij fakturę emailem przez Fakturownia (w tle)
-    sendInvoiceByEmail(invoice.id).catch((e) =>
-      console.error('[Webhook] Fakturownia sendByEmail error:', e),
-    );
+    // Wyślij fakturę emailem przez Fakturownia
+    const sent = await sendInvoiceByEmail(invoice.id);
+    if (!sent) {
+      console.warn('[Webhook] Fakturownia: wysyłka emailem nieudana dla faktury', invoice.id);
+    }
 
     // Uzupełnij wpis payments o dane faktury
     const updatedPayments = [...existingPayments];
@@ -237,13 +224,18 @@ async function generateAndAttachInvoice(params: {
       };
     }
 
-    await fetch(`${payloadUrl}/api/orders/${orderId}`, {
+    const patchRes = await fetch(`${payloadUrl}/api/orders/${orderId}`, {
       method: 'PATCH',
       headers: authHeaders,
       body: JSON.stringify({ payments: updatedPayments }),
     });
 
-    console.log(`[Webhook] Fakturownia: faktura ${invoice.id} wygenerowana dla order ${orderNumber}`);
+    if (!patchRes.ok) {
+      console.error('[Webhook] PATCH payments failed:', patchRes.status, await patchRes.text());
+      return;
+    }
+
+    console.log(`[Webhook] Fakturownia: faktura ${invoice.id} wygenerowana i zapisana dla order ${orderNumber}`);
   } catch (err) {
     console.error('[Webhook] generateAndAttachInvoice error:', err);
   }
@@ -278,7 +270,10 @@ export const POST: APIRoute = async ({ request }) => {
   const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) authHeaders['Authorization'] = `users API-Key ${apiKey}`;
 
-  // --- checkout.session.completed ---
+  // ─── checkout.session.completed ───────────────────────────────────────────
+  // Zadanie: zapisz order z danymi klienta i wyślij email onboardingowy.
+  // NIE tworzymy tutaj payments[] – invoice.payment_succeeded zrobi to automatycznie
+  // z prawidłowym stripeInvoiceId i kwotą. Tworzyliśmy duplikaty (checkout + invoice).
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
 
@@ -289,7 +284,6 @@ export const POST: APIRoute = async ({ request }) => {
     const stripeSubscriptionId = session.subscription as string;
     const onboardingToken = generateOnboardingToken();
 
-    // ─── Wyciągnij dane firmowe z custom_fields i customer_details ───
     const customFields = (session as any).custom_fields || [];
     const nipField = customFields.find((f: any) => f.key === 'nip');
     const companyField = customFields.find((f: any) => f.key === 'company_name');
@@ -306,18 +300,6 @@ export const POST: APIRoute = async ({ request }) => {
     const billingCountry = address?.country || 'PL';
 
     try {
-      // 1. Inicjalny wpis payments (bez faktury na razie – invoice.payment_succeeded przyjdzie osobno)
-      const initialPayment = {
-        stripeInvoiceId: '',
-        amount: monthlyAmount,
-        paidAt: new Date().toISOString(),
-        status: 'paid',
-        fakturowniaInvoiceId: '',
-        invoiceUrl: '',
-        invoicePdf: '',
-      };
-
-      // Zapisz zamówienie do Payload z danymi fakturowymi
       const orderRes = await fetch(`${payloadUrl}/api/orders`, {
         method: 'POST',
         headers: authHeaders,
@@ -329,8 +311,7 @@ export const POST: APIRoute = async ({ request }) => {
           monthlyAmount,
           subscriptionStatus: 'active',
           onboardingToken,
-          payments: [initialPayment],
-          // Dane do faktury
+          payments: [],  // Będą uzupełniane przez invoice.payment_succeeded (unikamy duplikatów)
           billingName,
           billingPhone,
           billingCompanyName,
@@ -346,46 +327,14 @@ export const POST: APIRoute = async ({ request }) => {
         console.error('[Webhook Stripe] Błąd zapisu Order:', await orderRes.text());
       }
 
-      // Odczytaj orderNumber i orderId z zapisanego dokumentu
+      // Odczytaj orderNumber z zapisanego dokumentu (do emaila onboardingowego)
       let orderNumber = '';
-      let orderId = '';
       try {
         const orderBody = await orderRes.json();
         orderNumber = orderBody?.doc?.orderNumber || orderBody?.orderNumber || '';
-        orderId = orderBody?.doc?.id || orderBody?.id || '';
       } catch { /* ignoruj */ }
 
-      // ─── Generuj fakturę przez Fakturownia (asynchronicznie) ─────────────
-      if (customerEmail && orderId && orderNumber) {
-        const clientData: FakturowniaClientData = {
-          companyName: billingCompanyName || billingName || customerEmail,
-          firstName: !billingCompanyName ? billingName.split(' ')[0] : '',
-          lastName: !billingCompanyName ? billingName.split(' ').slice(1).join(' ') : '',
-          email: customerEmail,
-          taxNo: billingNip,
-          street: billingStreet,
-          city: billingCity,
-          postCode: billingPostalCode,
-          country: billingCountry,
-          phone: billingPhone,
-        };
-
-        // Nie awajtuj – nie blokuj odpowiedzi webhooka
-        generateAndAttachInvoice({
-          orderId,
-          orderNumber,
-          paymentIndex: 0,
-          existingPayments: [initialPayment],
-          clientData,
-          dailyLimit,
-          monthlyAmount,
-          payloadUrl,
-          authHeaders,
-        }).catch((e: unknown) => console.error('[Webhook] generateAndAttachInvoice (checkout) error:', e));
-      }
-
-      // UWAGA: aktualizacja slotów usunięta z webhooku.
-      // Odpowiedzialność przeniesiona do verify-session.ts (idempotentna, przez stripeSubscriptionId).
+      // UWAGA: aktualizacja slotów przeniesiona do verify-session.ts (idempotentna)
 
       // Wyślij email onboardingowy przez Resend
       if (resendKey && customerEmail) {
@@ -419,11 +368,14 @@ export const POST: APIRoute = async ({ request }) => {
         }
       }
     } catch (err) {
-      console.error('[Webhook Stripe] Błąd ogólny:', err);
+      console.error('[Webhook Stripe] Błąd ogólny checkout:', err);
     }
   }
 
-  // --- invoice.payment_succeeded – dodaj wpis do tablicy payments + faktura ---
+  // ─── invoice.payment_succeeded ────────────────────────────────────────────
+  // Zadanie: dodaj wpis do payments[] + wygeneruj fakturę przez Fakturownia.
+  // Dotyczy zarówno pierwszej płatności jak i kolejnych (subskrypcja cykliczna).
+  // KLUCZOWE: await generateAndAttachInvoice() – serverless ginie przy return!
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as Stripe.Invoice;
     const subscriptionId = (invoice as any).subscription as string;
@@ -436,15 +388,16 @@ export const POST: APIRoute = async ({ request }) => {
           `${payloadUrl}/api/orders?where[stripeSubscriptionId][equals]=${subscriptionId}&limit=1`,
           { headers: authHeaders }
         );
+
         if (searchRes.ok) {
           const searchData = await searchRes.json();
           if (searchData.docs?.length > 0) {
             const order = searchData.docs[0];
-            const orderId = order.id;
-            const orderNumber = order.orderNumber || '';
-            const customerEmail = order.customerEmail || '';
+            const orderId: string = order.id;
+            const orderNumber: string = order.orderNumber || '';
+            const customerEmail: string = order.customerEmail || '';
 
-            // Nowy wpis w tablicy payments
+            // Nowy wpis payment
             const newPayment = {
               stripeInvoiceId: invoice.id,
               amount: Math.round(((invoice as any).amount_paid || 0) / 100),
@@ -457,10 +410,11 @@ export const POST: APIRoute = async ({ request }) => {
               ...(periodEnd ? { periodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
             };
 
-            const existingPayments = order.payments || [];
+            const existingPayments: any[] = order.payments || [];
             const updatedPayments = [...existingPayments, newPayment];
             const newPaymentIndex = updatedPayments.length - 1;
 
+            // Zapisz payments (bez faktury na razie)
             await fetch(`${payloadUrl}/api/orders/${orderId}`, {
               method: 'PATCH',
               headers: authHeaders,
@@ -471,7 +425,7 @@ export const POST: APIRoute = async ({ request }) => {
               }),
             });
 
-            // ─── Generuj fakturę przez Fakturownia ────────────────────────
+            // Generuj fakturę i uzupełnij payments – MUSI być await przed return!
             if (customerEmail && orderId && orderNumber) {
               const clientData: FakturowniaClientData = {
                 companyName: order.billingCompanyName || order.billingName || customerEmail,
@@ -486,20 +440,17 @@ export const POST: APIRoute = async ({ request }) => {
                 phone: order.billingPhone || '',
               };
 
-              // Refresh payments po PATCH
-              const refreshedPayments = [...updatedPayments];
-
-              generateAndAttachInvoice({
+              await generateAndAttachInvoice({
                 orderId,
                 orderNumber,
                 paymentIndex: newPaymentIndex,
-                existingPayments: refreshedPayments,
+                existingPayments: updatedPayments,
                 clientData,
                 dailyLimit: order.dailyLimit || 20,
                 monthlyAmount: Math.round(((invoice as any).amount_paid || 0) / 100) || order.monthlyAmount || 1999,
                 payloadUrl,
                 authHeaders,
-              }).catch((e) => console.error('[Webhook] generateAndAttachInvoice (invoice) error:', e));
+              });
             }
           }
         }
@@ -509,7 +460,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
-  // --- customer.subscription.deleted ---
+  // ─── customer.subscription.deleted ───────────────────────────────────────
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object as Stripe.Subscription;
     try {
