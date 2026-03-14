@@ -117,20 +117,35 @@ export const POST: APIRoute = async ({ request }) => {
     let briefId: string | number | null = null;
 
     if (finalMode === 'edit' && order.brief) {
-      // Przy depth=2 order.brief to pełny obiekt z danymi Brief
       if (typeof order.brief === 'object' && order.brief !== null) {
         briefId = order.brief.id;
         briefData = order.brief as Record<string, unknown>;
         console.log(`[verify-otp] Brief pobrany inline (depth=2), companyName=${briefData?.companyName}`);
       } else {
-        // Fallback: order.brief to nagi ID (gdyby depth się nie załadował)
         briefId = order.brief;
-        console.warn(`[verify-otp] Brief jest samym ID (${briefId}), depth=2 nie zadziałał. Próbuję osobny fetch...`);
+        console.warn(`[verify-otp] Brief jest stringiem (${briefId}), depth=2 zablokowany przez Access Control. Wymuszam pobranie bezp...`);
         
-        const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}?depth=0`, { headers: authHeaders });
-        console.log(`[verify-otp] Brief fallback fetch status: ${briefRes.status}`);
-        if (briefRes.ok) {
-          briefData = await briefRes.json() as Record<string, unknown>;
+        try {
+          const forceAuthHeaders = {
+            'Content-Type': 'application/json',
+            ...(apiKey ? { 'Authorization': `users API-Key ${apiKey.trim()}` } : {})
+          };
+
+          const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}?depth=0`, { 
+            headers: forceAuthHeaders 
+          });
+
+          console.log(`[verify-otp] Fallback fetch status: ${briefRes.status}`);
+
+          if (briefRes.ok) {
+            const briefJson = await briefRes.json();
+            briefData = (briefJson.doc || briefJson) as Record<string, unknown>;
+            console.log(`[verify-otp] Fallback success: companyName=${briefData?.companyName}`);
+          } else {
+            console.error(`[verify-otp] Fallback fetch failed: ${await briefRes.text()}`);
+          }
+        } catch (e) {
+          console.error(`[verify-otp] Błąd poczas force fetch briefa:`, e);
         }
       }
     }
