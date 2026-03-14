@@ -95,41 +95,44 @@
       const res = await fetch('/api/onboarding/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, otp: otpInput, mode }), // tryb nadal wysyłany by pomieszać ślady starszym linkom jeżeli trzeba
+        body: JSON.stringify({ token, otp: otpInput }),
       });
       const data = await res.json();
+      console.log('[OnboardingFlow] verify-otp response:', JSON.stringify(data, null, 2));
+
       if (!res.ok) { errorMsg = data.error || 'Błąd weryfikacji.'; return; }
+
       orderId = data.orderId;
       mode = data.mode === 'edit' ? 'edit' : 'onboarding';
+      console.log('[OnboardingFlow] Detected mode:', mode, 'briefId:', data.briefId, 'hasBrief:', !!data.brief);
 
       // Przypisanie obiektu Brief dla formularza, jeśli backend zwrócił je jako odpowiedź OTP.
-      if (mode === 'edit') {
-        briefId = data.briefId ?? null;
-        if (data.brief && typeof data.brief === 'object') {
-          const b = data.brief;
-          brief = {
-            companyName: b.companyName ?? '',
-            industry: b.industry ?? '',
-            senderName: b.senderName ?? '',
-            websiteUrl: b.websiteUrl ?? '',
-            actionMode: b.actionMode ?? 'save_to_drafts',
-            campaignGoal: b.campaignGoal ?? '',
-            valueProposition: b.valueProposition ?? '',
-            idealCustomerProfile: b.idealCustomerProfile ?? '',
-            toneOfVoice: b.toneOfVoice ?? 'professional',
-            negativeConstraints: b.negativeConstraints ?? '',
-            caseStudies: b.caseStudies ?? '',
-            signatureHtml: b.signatureHtml ?? '',
-            autoGenerateSignature: !!b.autoGenerateSignature,
-            warmupStrategy: b.warmupStrategy !== false,
-            authMethod: b.authMethod ?? 'nexus_lookalike_domain',
-            requestedDomain: b.requestedDomain ?? '',
-            imapHost: b.imapHost ?? '',
-            imapPort: b.imapPort ?? '993',
-            imapUser: b.imapUser ?? '',
-            imapPassword: '', // Nigdy nie prefilluj – hasło jest zawsze ukryte / KMS
-          };
-        }
+      if (mode === 'edit' && data.brief && typeof data.brief === 'object') {
+        briefId = data.briefId ?? data.brief?.id ?? null;
+        const b = data.brief;
+        brief = {
+          companyName: b.companyName ?? '',
+          industry: b.industry ?? '',
+          senderName: b.senderName ?? '',
+          websiteUrl: b.websiteUrl ?? '',
+          actionMode: b.actionMode ?? 'save_to_drafts',
+          campaignGoal: b.campaignGoal ?? '',
+          valueProposition: b.valueProposition ?? '',
+          idealCustomerProfile: b.idealCustomerProfile ?? '',
+          toneOfVoice: b.toneOfVoice ?? 'professional',
+          negativeConstraints: b.negativeConstraints ?? '',
+          caseStudies: b.caseStudies ?? '',
+          signatureHtml: b.signatureHtml ?? '',
+          autoGenerateSignature: !!b.autoGenerateSignature,
+          warmupStrategy: b.warmupStrategy !== false,
+          authMethod: b.authMethod ?? 'nexus_lookalike_domain',
+          requestedDomain: b.requestedDomain ?? '',
+          imapHost: b.imapHost ?? '',
+          imapPort: b.imapPort ?? '993',
+          imapUser: b.imapUser ?? '',
+          imapPassword: '', // Nigdy nie prefilluj – hasło jest zawsze ukryte / KMS
+        };
+        console.log('[OnboardingFlow] Brief załadowany:', brief.companyName, brief.industry);
       }
 
       stage = 'brief';

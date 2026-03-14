@@ -9,7 +9,7 @@ function generateOtp(): string {
 
 export const POST: APIRoute = async ({ request }) => {
   const body = await request.json();
-  const { token, email, mode } = body as { token?: string; email?: string; mode?: 'onboarding' | 'edit' };
+  const { token, email } = body as { token?: string; email?: string };
 
   if (!token || !email) {
     return new Response(JSON.stringify({ error: 'Brak tokenu lub emaila' }), {
@@ -18,30 +18,62 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
-  const tokenField = mode === 'edit' ? 'editToken' : 'onboardingToken';
+
+  // Autoryzacja z API Key (wymagana dla Orders z !!user na read)
+  const apiKey = import.meta.env.PAYLOAD_API_KEY;
+  const authHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) {
+    authHeaders['Authorization'] = `users API-Key ${apiKey}`;
+  }
 
   try {
-    const searchRes = await fetch(
-      `${payloadUrl}/api/orders?where[${tokenField}][equals]=${encodeURIComponent(token)}&limit=1`,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    const searchData = await searchRes.json();
+    // ─── AUTO-DETEKCJA trybu po tokenie (nie polegamy na mode z frontu) ───
+    let order: any = null;
+    let detectedMode: 'onboarding' | 'edit' = 'onboarding';
 
-    if (!searchData.docs?.length) {
+    // Najpierw szukamy w onboardingToken
+    const resOnboarding = await fetch(
+      `${payloadUrl}/api/orders?where[onboardingToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
+      { headers: authHeaders }
+    );
+    if (resOnboarding.ok) {
+      const dataOnboarding = await resOnboarding.json();
+      if (dataOnboarding.docs?.length > 0) {
+        order = dataOnboarding.docs[0];
+        detectedMode = 'onboarding';
+      }
+    }
+
+    // Jeśli nie znaleziono w onboardingToken, szukamy w editToken
+    if (!order) {
+      const resEdit = await fetch(
+        `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
+        { headers: authHeaders }
+      );
+      if (resEdit.ok) {
+        const dataEdit = await resEdit.json();
+        if (dataEdit.docs?.length > 0) {
+          order = dataEdit.docs[0];
+          detectedMode = 'edit';
+        }
+      }
+    }
+
+    if (!order) {
       return new Response(JSON.stringify({ error: 'Nieprawidłowy token' }), {
         status: 404, headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const order = searchData.docs[0];
-
     // W trybie edit brief musi istnieć; w trybie onboarding brief nie może istnieć (burn after reading)
-    if (mode === 'edit' && !order.brief) {
+    if (detectedMode === 'edit' && !order.brief) {
       return new Response(JSON.stringify({ error: 'Brak briefu do edycji.' }), {
         status: 409, headers: { 'Content-Type': 'application/json' },
       });
     }
-    if (mode !== 'edit' && order.brief) {
+    if (detectedMode !== 'edit' && order.brief) {
       return new Response(JSON.stringify({ error: 'Ten link został już wykorzystany. Brief jest zapisany.' }), {
         status: 410, headers: { 'Content-Type': 'application/json' },
       });
@@ -54,7 +86,7 @@ export const POST: APIRoute = async ({ request }) => {
       if (otpTime < cutoff) {
         await fetch(`${payloadUrl}/api/orders/${order.id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({ otpCode: null, otpExpiry: null }),
         });
         order.otpCode = null;
@@ -72,14 +104,15 @@ export const POST: APIRoute = async ({ request }) => {
     const otp = generateOtp();
     const expiry = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minut
 
-    // Zapisz OTP do Order
+    // Zapisz OTP do Order (z auth headers!)
     const patchRes = await fetch(`${payloadUrl}/api/orders/${order.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ otpCode: otp, otpExpiry: expiry }),
     });
 
     if (!patchRes.ok) {
+      console.error('[send-otp] Błąd zapisu OTP, PATCH status:', patchRes.status);
       return new Response(JSON.stringify({ error: 'Błąd zapisu OTP' }), {
         status: 500, headers: { 'Content-Type': 'application/json' },
       });
@@ -104,7 +137,7 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    return new Response(JSON.stringify({ sent: true }), {
+    return new Response(JSON.stringify({ sent: true, mode: detectedMode }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {

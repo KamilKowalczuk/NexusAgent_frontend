@@ -4,9 +4,8 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ request }) => {
   const body = await request.json();
-  const token = body.token;
-  const otp = body.otp;
-  const mode = body.mode as 'onboarding' | 'edit' | undefined;
+  const token = body.token as string | undefined;
+  const otp = body.otp as string | undefined;
 
   if (!token || !otp) {
     return new Response(JSON.stringify({ error: 'Brak tokenu lub kodu OTP' }), {
@@ -15,8 +14,8 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const payloadUrl = import.meta.env.PAYLOAD_URL || 'http://127.0.0.1:3000';
-  
-  // Jeśli front-end nie podał jawnie trybu, sam wykryj tryb po tokenie
+
+  // Autoryzacja z API Key
   const apiKey = import.meta.env.PAYLOAD_API_KEY;
   const authHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -25,30 +24,36 @@ export const POST: APIRoute = async ({ request }) => {
     authHeaders['Authorization'] = `users API-Key ${apiKey}`;
   }
 
-  let finalMode = mode;
+  let finalMode: 'onboarding' | 'edit' = 'onboarding';
   let order: any = null;
 
   try {
+    // ─── AUTO-DETEKCJA trybu po tokenie ───────────────────────────────────
     // Najpierw szukamy w onboardingToken
     const searchResOnboarding = await fetch(
-      `${payloadUrl}/api/orders?where[onboardingToken][equals]=${encodeURIComponent(token)}&limit=1`,
+      `${payloadUrl}/api/orders?where[onboardingToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
       { headers: authHeaders }
     );
-    const searchDataOnboarding = await searchResOnboarding.json();
+    if (searchResOnboarding.ok) {
+      const dataOnboarding = await searchResOnboarding.json();
+      if (dataOnboarding.docs?.length > 0) {
+        finalMode = 'onboarding';
+        order = dataOnboarding.docs[0];
+      }
+    }
 
-    if (searchDataOnboarding.docs?.length > 0) {
-      finalMode = 'onboarding';
-      order = searchDataOnboarding.docs[0];
-    } else {
-      // Szukamy w editToken
+    // Jeśli nie znaleziono w onboardingToken, szukamy w editToken
+    if (!order) {
       const searchResEdit = await fetch(
         `${payloadUrl}/api/orders?where[editToken][equals]=${encodeURIComponent(token)}&limit=1&depth=0`,
         { headers: authHeaders }
       );
-      const searchDataEdit = await searchResEdit.json();
-      if (searchDataEdit.docs?.length > 0) {
-        finalMode = 'edit';
-        order = searchDataEdit.docs[0];
+      if (searchResEdit.ok) {
+        const dataEdit = await searchResEdit.json();
+        if (dataEdit.docs?.length > 0) {
+          finalMode = 'edit';
+          order = dataEdit.docs[0];
+        }
       }
     }
 
@@ -57,6 +62,8 @@ export const POST: APIRoute = async ({ request }) => {
         status: 404, headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    console.log(`[verify-otp] Znaleziono order ${order.id}, mode=${finalMode}, brief=${JSON.stringify(order.brief)}`);
 
     // W trybie edit brief musi istnieć; w trybie onboarding brief nie może istnieć (burn after reading)
     if (finalMode === 'edit' && !order.brief) {
@@ -77,7 +84,7 @@ export const POST: APIRoute = async ({ request }) => {
       if (otpTime < cutoff) {
         await fetch(`${payloadUrl}/api/orders/${order.id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({ otpCode: null, otpExpiry: null }),
         });
         order.otpCode = null;
@@ -104,26 +111,39 @@ export const POST: APIRoute = async ({ request }) => {
       body: JSON.stringify({ otpCode: null, otpExpiry: null }),
     });
 
-    // Jeżeli edycja, pobieramy Brief osobnym zapytaniem na wszelki wypadek
+    // ─── Jeżeli edycja, pobieramy Brief osobnym zapytaniem ────────────────
     let briefData: Record<string, unknown> | null = null;
-    let briefId = null;
+    let briefId: string | number | null = null;
+
     if (finalMode === 'edit' && order.brief) {
-      // W zależności od 'depth' zapytania Payload wrzuca w order.brief albo obiekt, albo sam string (Id).
-      briefId = typeof order.brief === 'object' && order.brief !== null ? order.brief.id : order.brief;
-      
+      // order.brief może być string/number (ID) przy depth=0, lub obiekt przy depth>0
+      briefId = typeof order.brief === 'object' && order.brief !== null
+        ? order.brief.id
+        : order.brief;
+
+      console.log(`[verify-otp] Pobieranie briefu ID=${briefId}...`);
+
       if (briefId) {
-        const briefRes = await fetch(`${payloadUrl}/api/briefs/${briefId}?depth=0`, { headers: authHeaders });
+        const briefRes = await fetch(
+          `${payloadUrl}/api/briefs/${briefId}?depth=0`,
+          { headers: authHeaders }
+        );
+
+        console.log(`[verify-otp] Brief fetch status: ${briefRes.status}`);
+
         if (briefRes.ok) {
           const briefJson = await briefRes.json();
-          // Payload w standardowym findByID zwraca dokument od razu (nie briefJson.doc), bierzemy doc jako awaryjne wyciąganie
-          briefData = (briefJson.doc ?? briefJson) as Record<string, unknown>;
+          // Payload findByID zwraca dokument bezpośrednio (nie w .doc)
+          briefData = briefJson as Record<string, unknown>;
+          console.log(`[verify-otp] Brief pobrany pomyślnie, companyName=${briefData?.companyName}`);
         } else {
-          console.error(`[verify-otp] Nie udało się dociągnąć struktury brief dla id ${briefId}`);
+          const errText = await briefRes.text();
+          console.error(`[verify-otp] Nie udało się pobrać brief ${briefId}: ${errText}`);
         }
       }
     }
 
-    return new Response(JSON.stringify({
+    const responsePayload = {
       verified: true,
       mode: finalMode,
       orderId: order.id,
@@ -132,7 +152,11 @@ export const POST: APIRoute = async ({ request }) => {
       monthlyAmount: order.monthlyAmount,
       briefId,
       brief: briefData,
-    }), {
+    };
+
+    console.log(`[verify-otp] Odpowiedź: mode=${finalMode}, briefId=${briefId}, hasBrief=${!!briefData}`);
+
+    return new Response(JSON.stringify(responsePayload), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
