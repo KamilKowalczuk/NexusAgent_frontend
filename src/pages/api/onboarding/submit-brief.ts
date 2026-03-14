@@ -342,9 +342,9 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: true, briefId }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[submit-brief] Error:', err);
-    return new Response(JSON.stringify({ error: 'Błąd serwera' }), {
+    return new Response(JSON.stringify({ error: 'Błąd serwera', details: err?.message || String(err), stack: err?.stack }), {
       status: 500, headers: { 'Content-Type': 'application/json' },
     });
   }
