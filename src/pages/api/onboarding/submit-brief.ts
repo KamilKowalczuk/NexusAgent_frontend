@@ -14,23 +14,42 @@ const fontsDir = path.resolve(__dirname, '../../../assets/fonts');
 const publicDir = path.resolve(__dirname, '../../../../public');
 
 async function generateBriefPdf(brief: Record<string, any>, order: Record<string, any>): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
+  return new Promise(async (resolve, reject) => {
+    // margins bottom: 20 zapobiega pustej stronie przy doc.text(..., y: 810)
+    const doc = new PDFDocument({ margins: { top: 50, bottom: 20, left: 50, right: 50 }, size: 'A4', bufferPages: true });
     const chunks: Buffer[] = [];
 
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    // ─── Rejestracja fontów Inter (OTF — obsługuje polskie znaki) ───
-    const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
-    const interBoldPath = path.join(fontsDir, 'Inter-Bold.ttf');
+    // ─── Rejestracja fontów Inter (OTF/TTF z polskimi znakami) ───
+    const interRegularPath = path.join(publicDir, 'fonts', 'Inter-Regular.ttf');
+    const interBoldPath = path.join(publicDir, 'fonts', 'Inter-Bold.ttf');
+    const siteUrl = import.meta.env.SITE_URL || 'https://nexusagent.pl';
 
-    const hasInter = fs.existsSync(interRegularPath) && fs.existsSync(interBoldPath);
-
-    if (hasInter) {
-      doc.registerFont('Inter', interRegularPath);
-      doc.registerFont('Inter-Bold', interBoldPath);
+    let hasInter = false;
+    try {
+      if (fs.existsSync(interRegularPath) && fs.existsSync(interBoldPath)) {
+        doc.registerFont('Inter', interRegularPath);
+        doc.registerFont('Inter-Bold', interBoldPath);
+        hasInter = true;
+      } else {
+        // Fallback dla Serverless (Netlify Edge functions rzadko widzą folder public w fs)
+        const [regRes, boldRes] = await Promise.all([
+          fetch(`${siteUrl}/fonts/Inter-Regular.ttf`),
+          fetch(`${siteUrl}/fonts/Inter-Bold.ttf`)
+        ]);
+        if (regRes.ok && boldRes.ok) {
+          const regBuf = Buffer.from(await regRes.arrayBuffer());
+          const boldBuf = Buffer.from(await boldRes.arrayBuffer());
+          doc.registerFont('Inter', regBuf);
+          doc.registerFont('Inter-Bold', boldBuf);
+          hasInter = true;
+        }
+      }
+    } catch (e) {
+      console.warn('Waring: Font Inter load failed, using Helvetica fallback');
     }
 
     const fontRegular = hasInter ? 'Inter' : 'Helvetica';
@@ -129,15 +148,15 @@ async function generateBriefPdf(brief: Record<string, any>, order: Record<string
     const currentPage = doc.bufferedPageRange();
     const lastPage = currentPage.start + currentPage.count - 1;
     doc.switchToPage(lastPage);
-    doc.fontSize(6).fillColor('#1e293b').font(fontRegular)
+    doc.fontSize(6).fillColor(dimGray).font(fontRegular)
       .text(
         `Wygenerowano: ${new Date().toLocaleString('pl-PL')} · NEXUS AGENT · nexusagent.pl`,
         50, 810, { align: 'center' }
       );
 
-    // Usuń ewentualne puste strony dodane przez PDFKit
-    const range = doc.bufferedPageRange();
-    // Nie robimy nic z pustymi stronami — bufferPages: true zapobiega ich tworzeniu
+    // Buffer pages automatycznie nie utnie tła ale na wszelki wypadek
+    // kończymy ładnie
+
 
     doc.end();
   });
