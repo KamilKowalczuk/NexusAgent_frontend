@@ -87,13 +87,14 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  // 3. Wyślij mailem z użyciem Resend
+  // 3. Wyślij mailem z użyciem Resend jako ponowna wysyłka (duplikat)
   const success = await dispatchInvoiceEmailWithPdf({
     toEmail: email,
     pdfBuffer,
     orderNumber,
     serviceName,
-    amountGross
+    amountGross,
+    isResend: true,
   });
 
   if (!success) {

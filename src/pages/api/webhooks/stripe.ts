@@ -210,10 +210,11 @@ async function generateAndAttachInvoice(params: {
 
     // Pobierz PDF faktury jako Buffer
     const pdfBuffer = await downloadInvoicePdf(invoice.id);
+    let emailSent = false;
 
     if (pdfBuffer) {
       // Wyślij PDF za pomocą Resend
-      const sent = await dispatchInvoiceEmailWithPdf({
+      emailSent = await dispatchInvoiceEmailWithPdf({
         toEmail: clientData.email,
         pdfBuffer,
         orderNumber,
@@ -221,7 +222,7 @@ async function generateAndAttachInvoice(params: {
         amountGross: monthlyAmount,
       });
 
-      if (!sent) {
+      if (!emailSent) {
         console.warn('[Webhook] Invoice Email Dispatch: wysyłka emaila nieudana dla faktury XL ID', invoice.id);
       }
     } else {
@@ -234,8 +235,7 @@ async function generateAndAttachInvoice(params: {
       updatedPayments[paymentIndex] = {
         ...updatedPayments[paymentIndex],
         fakturaXlInvoiceId: String(invoice.id),
-        invoiceUrl: '', // Nie mamy bezpośredniego URL publicznego od XL
-        invoicePdf: '', // Podobnie, pobieramy jako BASE64 w locie
+        invoiceStatus: emailSent ? 'sent' : 'error',
       };
     }
 
@@ -475,8 +475,6 @@ export const POST: APIRoute = async ({ request }) => {
               paidAt: new Date().toISOString(),
               status: 'paid',
               fakturaXlInvoiceId: '',
-              invoiceUrl: '',
-              invoicePdf: '',
               ...(periodStart ? { periodStart: new Date(periodStart * 1000).toISOString() } : {}),
               ...(periodEnd ? { periodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
             };

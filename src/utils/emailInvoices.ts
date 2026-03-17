@@ -5,11 +5,14 @@ function buildInvoiceEmail(params: {
   orderNumber: string;
   serviceName: string;
   amountGross: number;
+  isResend?: boolean;
 }): { subject: string; html: string } {
-  const { customerEmail, orderNumber, serviceName, amountGross } = params;
+  const { customerEmail, orderNumber, serviceName, amountGross, isResend } = params;
 
   return {
-    subject: `NEXUS Agent – Faktura VAT do Zamówienia ${orderNumber}`,
+    subject: isResend 
+      ? `NEXUS Agent – Ponowna wysyłka faktury VAT do Zamówienia ${orderNumber}`
+      : `NEXUS Agent – Faktura VAT do Zamówienia ${orderNumber}`,
     html: `
 <!DOCTYPE html>
 <html lang="pl">
@@ -43,10 +46,12 @@ function buildInvoiceEmail(params: {
           <tr>
             <td style="padding:40px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:24px;margin-top:16px;">
 
-              <div style="font-size:11px;font-family:monospace;text-transform:uppercase;letter-spacing:0.2em;color:#0ceaed;margin-bottom:16px;">Dokument Wygenerowany Systemowo</div>
+              <div style="font-size:11px;font-family:monospace;text-transform:uppercase;letter-spacing:0.2em;color:#0ceaed;margin-bottom:16px;">
+                ${isResend ? 'DUPLIKAT WYSŁANY SYSTEMOWO' : 'Dokument Wygenerowany Systemowo'}
+              </div>
 
               <h1 style="margin:0 0 16px;font-size:24px;font-weight:800;text-transform:uppercase;letter-spacing:-0.02em;color:#fff;line-height:1.2;">
-                Odnowienie usług.<br/>
+                ${isResend ? 'Ponowna wysyłka dokumentu.<br/>' : 'Odnowienie usług.<br/>'}
                 <span style="color:#0ceaed;">Faktura w załączeniu.</span>
               </h1>
 
@@ -113,6 +118,7 @@ export async function dispatchInvoiceEmailWithPdf(params: {
   orderNumber: string;
   serviceName: string;
   amountGross: number;
+  isResend?: boolean;
 }): Promise<boolean> {
   const resendKey = import.meta.env.RESEND_API_KEY;
 
@@ -121,7 +127,7 @@ export async function dispatchInvoiceEmailWithPdf(params: {
     return false;
   }
 
-  const { toEmail, pdfBuffer, orderNumber, serviceName, amountGross } = params;
+  const { toEmail, pdfBuffer, orderNumber, serviceName, amountGross, isResend } = params;
   const resend = new Resend(resendKey);
 
   const { subject, html } = buildInvoiceEmail({
@@ -129,6 +135,7 @@ export async function dispatchInvoiceEmailWithPdf(params: {
     orderNumber,
     serviceName,
     amountGross,
+    isResend,
   });
 
   try {
