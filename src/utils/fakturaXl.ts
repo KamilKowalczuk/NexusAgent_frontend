@@ -23,8 +23,10 @@ export interface FakturaXlInvoiceParams {
   orderNumber: string; // Używane w opisie
   serviceName: string; // np. "NEXUS Agent – 20 maili/dzień – Plan miesięczny"
   totalPriceGross: number; // kwota brutto w PLN
-  taxRate?: number; // stawka VAT (np. 23)
+  taxRate?: number | string; // stawka VAT (np. 23, 'zw')
   issueDateOverride?: string; // (YYYY-MM-DD) opcjonalne nadpisanie
+  isVatExempt?: boolean; // Czy firma jest zwolniona z VAT (Rachunek)
+  vatExemptionBasis?: string; // Opcjonalna podstawa prawna do wyświetlenia na fakturze (np. art. 113 ust. 1 i 9)
 }
 
 export interface FakturaXlInvoiceResult {
@@ -85,19 +87,20 @@ export async function createInvoice(
   const requestXml = `<?xml version="1.0" encoding="UTF-8"?>
 <dokument>
     <api_token>${escapeXml(token)}</api_token>
-    <typ_faktury>0</typ_faktury>
+    <typ_faktury>${params.isVatExempt ? '6' : '0'}</typ_faktury>
     <obliczaj_sume_wartosci_faktury_wg>0</obliczaj_sume_wartosci_faktury_wg>
     <data_wystawienia>${issueDate}</data_wystawienia>
     <data_sprzedazy>${issueDate}</data_sprzedazy>
     <rodzaj_platnosci>Przelew</rodzaj_platnosci>
     <waluta>PLN</waluta>
     <status>2</status> <!-- 2 = Opłacona (wg API docs) -->
+    ${params.vatExemptionBasis ? `<uwagi>${escapeXml(params.vatExemptionBasis)}</uwagi>` : ''}
     
     <faktura_pozycje>
         <nazwa>${escapeXml(params.serviceName)} - Zamówienie: ${escapeXml(params.orderNumber)}</nazwa>
         <ilosc>${qty}</ilosc>
         <jm>szt.</jm>
-        <vat>${taxRate}</vat>
+        <vat>${params.isVatExempt ? 'zw' : taxRate}</vat>
         <wartosc_brutto>${grossAmount}</wartosc_brutto>
     </faktura_pozycje>
 

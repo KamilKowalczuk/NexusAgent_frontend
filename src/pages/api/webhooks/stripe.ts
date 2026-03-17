@@ -200,7 +200,8 @@ async function generateAndAttachInvoice(params: {
       orderNumber,
       serviceName: `NEXUS Agent – ${dailyLimit} maili/dzień – Plan miesięczny`,
       totalPriceGross: monthlyAmount,
-      taxRate: 23,
+      isVatExempt: true,
+      vatExemptionBasis: 'Zwolnienie z VAT na podstawie art. 113 ust. 1 i 9 ustawy o VAT',
     });
 
     if (!invoice || !invoice.id) {
