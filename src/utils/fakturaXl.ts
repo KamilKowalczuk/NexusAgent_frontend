@@ -165,7 +165,7 @@ export async function downloadInvoicePdf(dokumentId: number): Promise<Buffer | n
   const requestXml = `<?xml version="1.0" encoding="UTF-8"?>
 <dokument>
     <api_token>${escapeXml(token)}</api_token>
-    <id>${dokumentId}</id>
+    <dokument_id>${dokumentId}</dokument_id>
 </dokument>`;
 
   try {

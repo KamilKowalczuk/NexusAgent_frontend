@@ -4,6 +4,19 @@ import { dispatchInvoiceEmailWithPdf } from '../../../utils/emailInvoices';
 
 export const prerender = false;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export const OPTIONS: APIRoute = () => {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+};
+
 /**
  * POST /api/invoices/resend
  * Body: { fakturaXlInvoiceId: string }
@@ -17,7 +30,7 @@ export const POST: APIRoute = async ({ request }) => {
   } catch {
     return new Response(
       JSON.stringify({ error: 'Nieprawidłowy JSON' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 
@@ -26,7 +39,7 @@ export const POST: APIRoute = async ({ request }) => {
   if (!fakturaXlInvoiceId || fakturaXlInvoiceId.trim() === '') {
     return new Response(
       JSON.stringify({ error: 'Brak fakturaXlInvoiceId' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 
@@ -34,7 +47,7 @@ export const POST: APIRoute = async ({ request }) => {
   if (isNaN(invoiceIdNum) || invoiceIdNum <= 0) {
     return new Response(
       JSON.stringify({ error: 'Nieprawidłowy fakturaXlInvoiceId (musi być liczbą > 0)' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 
@@ -73,7 +86,7 @@ export const POST: APIRoute = async ({ request }) => {
   if (!email) {
     return new Response(
       JSON.stringify({ error: 'Nie odnaleziono powiązanego zamówienia i adresu email w bazie.' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
+      { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 
@@ -83,7 +96,7 @@ export const POST: APIRoute = async ({ request }) => {
   if (!pdfBuffer) {
     return new Response(
       JSON.stringify({ error: 'Faktura XL zwróciła błąd podczas pobierania pliku PDF.' }),
-      { status: 502, headers: { 'Content-Type': 'application/json' } },
+      { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 
@@ -100,12 +113,12 @@ export const POST: APIRoute = async ({ request }) => {
   if (!success) {
     return new Response(
       JSON.stringify({ error: 'Nieudana wysyłka wiadomości e-mail via Resend.' }),
-      { status: 502, headers: { 'Content-Type': 'application/json' } },
+      { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 
   return new Response(
     JSON.stringify({ success: true, message: `Faktura ${fakturaXlInvoiceId} wygenerowana i wysłana (Resend).` }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
+    { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
   );
 };
