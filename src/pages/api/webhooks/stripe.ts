@@ -2,7 +2,8 @@ import type { APIRoute } from 'astro';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import crypto from 'crypto';
-import { createInvoice, sendInvoiceByEmail, type FakturowniaClientData } from '../../../utils/fakturownia';
+import { createInvoice, downloadInvoicePdf, type FakturaXlClientData } from '../../../utils/fakturaXl';
+import { dispatchInvoiceEmailWithPdf } from '../../../utils/emailInvoices';
 
 export const prerender = false;
 
@@ -182,7 +183,7 @@ async function generateAndAttachInvoice(params: {
   orderNumber: string;
   paymentIndex: number;
   existingPayments: any[];
-  clientData: FakturowniaClientData;
+  clientData: FakturaXlClientData;
   dailyLimit: number;
   monthlyAmount: number;
   payloadUrl: string;
@@ -202,15 +203,29 @@ async function generateAndAttachInvoice(params: {
       taxRate: 23,
     });
 
-    if (!invoice) {
-      console.error('[Webhook] Fakturownia: nie udało się wygenerować faktury dla order', orderNumber);
+    if (!invoice || !invoice.id) {
+      console.error('[Webhook] Faktura XL: nie udało się wygenerować faktury dla order', orderNumber);
       return;
     }
 
-    // Wyślij fakturę emailem przez Fakturownia
-    const sent = await sendInvoiceByEmail(invoice.id);
-    if (!sent) {
-      console.warn('[Webhook] Fakturownia: wysyłka emailem nieudana dla faktury', invoice.id);
+    // Pobierz PDF faktury jako Buffer
+    const pdfBuffer = await downloadInvoicePdf(invoice.id);
+
+    if (pdfBuffer) {
+      // Wyślij PDF za pomocą Resend
+      const sent = await dispatchInvoiceEmailWithPdf({
+        toEmail: clientData.email,
+        pdfBuffer,
+        orderNumber,
+        serviceName: `NEXUS Agent – ${dailyLimit} maili/dzień – Plan miesięczny`,
+        amountGross: monthlyAmount,
+      });
+
+      if (!sent) {
+        console.warn('[Webhook] Invoice Email Dispatch: wysyłka emaila nieudana dla faktury XL ID', invoice.id);
+      }
+    } else {
+      console.warn('[Webhook] Faktura XL: błąd pobierania PDF-a dla faktury XL ID', invoice.id);
     }
 
     // Uzupełnij wpis payments o dane faktury
@@ -218,9 +233,9 @@ async function generateAndAttachInvoice(params: {
     if (updatedPayments[paymentIndex]) {
       updatedPayments[paymentIndex] = {
         ...updatedPayments[paymentIndex],
-        fakturowniaInvoiceId: String(invoice.id),
-        invoiceUrl: invoice.viewUrl,
-        invoicePdf: invoice.pdfUrl,
+        fakturaXlInvoiceId: String(invoice.id),
+        invoiceUrl: '', // Nie mamy bezpośredniego URL publicznego od XL
+        invoicePdf: '', // Podobnie, pobieramy jako BASE64 w locie
       };
     }
 
@@ -235,7 +250,7 @@ async function generateAndAttachInvoice(params: {
       return;
     }
 
-    console.log(`[Webhook] Fakturownia: faktura ${invoice.id} wygenerowana i zapisana dla order ${orderNumber}`);
+    console.log(`[Webhook] Faktura XL: faktura ${invoice.id} wygenerowana i obsłużona dla order ${orderNumber}`);
   } catch (err) {
     console.error('[Webhook] generateAndAttachInvoice error:', err);
   }
@@ -308,7 +323,7 @@ export const POST: APIRoute = async ({ request }) => {
         amount: monthlyAmount,
         paidAt: new Date().toISOString(),
         status: 'paid',
-        fakturowniaInvoiceId: '',
+        fakturaXlInvoiceId: '',
         invoiceUrl: '',
         invoicePdf: '',
       };
@@ -352,9 +367,9 @@ export const POST: APIRoute = async ({ request }) => {
         orderId = orderBody?.doc?.id || orderBody?.id || '';
       } catch { /* ignoruj */ }
 
-      // ─── Generuj pierwszą fakturę Fakturownia ──────────────────────────────
+      // ─── Generuj pierwszą fakturę Faktura XL ──────────────────────────────
       if (customerEmail && orderId && orderNumber) {
-        const clientData: FakturowniaClientData = {
+        const clientData: FakturaXlClientData = {
           companyName: billingCompanyName || billingName || customerEmail,
           firstName: !billingCompanyName ? billingName.split(' ')[0] : '',
           lastName: !billingCompanyName ? billingName.split(' ').slice(1).join(' ') : '',
@@ -459,7 +474,7 @@ export const POST: APIRoute = async ({ request }) => {
               amount: Math.round(((invoice as any).amount_paid || 0) / 100),
               paidAt: new Date().toISOString(),
               status: 'paid',
-              fakturowniaInvoiceId: '',
+              fakturaXlInvoiceId: '',
               invoiceUrl: '',
               invoicePdf: '',
               ...(periodStart ? { periodStart: new Date(periodStart * 1000).toISOString() } : {}),
@@ -482,7 +497,7 @@ export const POST: APIRoute = async ({ request }) => {
 
             // Generuj fakturę i uzupełnij payments – MUSI być await przed return!
             if (customerEmail && orderId && orderNumber) {
-              const clientData: FakturowniaClientData = {
+              const clientData: FakturaXlClientData = {
                 companyName: order.billingCompanyName || order.billingName || customerEmail,
                 firstName: !order.billingCompanyName ? (order.billingName || '').split(' ')[0] : '',
                 lastName: !order.billingCompanyName ? (order.billingName || '').split(' ').slice(1).join(' ') : '',
