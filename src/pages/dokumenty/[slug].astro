@@ -1,5 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import { renderLexical } from "../../utils/lexicalToHtml";
 
@@ -25,6 +26,7 @@ const htmlContent = document.content?.root
 ---
 
 <Layout title={`${document.title} | Nexus Agent TITAN`}>
+  <Header />
   <div
     class="min-h-screen bg-bg-dark text-slate-300 selection:bg-primary/30 selection:text-white pt-32 pb-20 relative overflow-hidden"
   >
