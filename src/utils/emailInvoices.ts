@@ -12,7 +12,7 @@ function buildInvoiceEmail(params: {
   const siteUrl = 'https://nexusagent.pl';
 
   return {
-    subject: isResend 
+    subject: isResend
       ? `NEXUS Agent – Ponowna wysyłka faktury do Zamówienia ${orderNumber}`
       : `NEXUS Agent – Faktura do Zamówienia ${orderNumber}`,
     html: `
@@ -93,7 +93,7 @@ function buildInvoiceEmail(params: {
                 <tr>
                   <td colspan="2" style="padding:8px 16px;">
                     <span style="font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em;color:#64748b;">Status Rachunku</span><br/>
-                    <span style="font-size:14px;font-weight:600;color:#22c55e;">● Opłacono wg dyspozycji Stripe</span>
+                    <span style="font-size:14px;font-weight:600;color:#22c55e;">● Aktywna – płatność potwierdzona</span>
                   </td>
                 </tr>
               </table>
