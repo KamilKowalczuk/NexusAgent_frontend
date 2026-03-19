@@ -70,7 +70,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // Ponieważ Payload nie zarządza naszymi sesjami w klasyczny sposób dla Klientów (mając tylko API keys admina),
     // zbudujemy proste HMAC podpisane przez payload api key
     const sessionSecret = apiKey || 'fallback_dev_secret_unsecure_!!';
-    const signature = signSessionId(order.id, sessionSecret);
+    const signature = signSessionId(String(order.id), sessionSecret);
     const cookieValue = `${order.id}.${signature}`;
 
     cookies.set('nexus_sub_session', cookieValue, {
