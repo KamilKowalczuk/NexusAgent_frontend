@@ -34,22 +34,28 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     
     let upcomingInvoice = null;
     let cancelAtDate = null;
+    let liveCurrentPeriodEnd = order.currentPeriodEnd;
 
     // Jeżeli aktywna, dociągnij The Next Billing Date z API Stripe dla pięknego UX
     if (order.stripeSubscriptionId) {
         try {
             const stripeSecret = import.meta.env.STRIPE_SECRET_KEY;
-            const stripe = new Stripe(stripeSecret!, { apiVersion: '2026-02-25.clover' });
+            const stripe = new Stripe(stripeSecret!, { apiVersion: '2026-02-25.clover' } as any);
             
-            const sub = await stripe.subscriptions.retrieve(order.stripeSubscriptionId);
+            const sub = await stripe.subscriptions.retrieve(order.stripeSubscriptionId) as any;
             
             cancelAtDate = sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null;
+            if (sub.current_period_end) {
+                liveCurrentPeriodEnd = new Date(sub.current_period_end * 1000).toISOString();
+            }
             
             if (sub.status === 'active' && !sub.cancel_at_period_end) {
                  const inv = await (stripe.invoices as any).retrieveUpcoming({ subscription: sub.id });
-                 upcomingInvoice = {
-                     amount_due: inv.amount_due / 100, // Stripe expects cents
-                     next_payment_attempt: new Date(inv.next_payment_attempt! * 1000).toISOString()
+                 if (inv && inv.next_payment_attempt) {
+                     upcomingInvoice = {
+                         amount_due: inv.amount_due / 100, // Stripe expects cents
+                         next_payment_attempt: new Date(inv.next_payment_attempt * 1000).toISOString()
+                     };
                  }
             }
         } catch (e) {
@@ -64,7 +70,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         status: order.subscriptionStatus,
         dailyLimit: order.dailyLimit,
         monthlyAmount: order.monthlyAmount,
-        currentPeriodEnd: order.currentPeriodEnd,
+        currentPeriodEnd: liveCurrentPeriodEnd,
         cancelAtDate,
         upcomingInvoice,
         payments: order.payments || [],
