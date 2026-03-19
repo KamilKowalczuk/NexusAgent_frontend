@@ -221,7 +221,6 @@
       {/if}
     </div>
   </div>
-  </div>
 {/if}
 
 <!-- MODAL ANULOWANIA SUBSKRYPCJI -->
