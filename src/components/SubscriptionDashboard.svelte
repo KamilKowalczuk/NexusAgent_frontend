@@ -16,8 +16,11 @@
   let data = $state<DashboardData | null>(null);
   let isLoading = $state(true);
   let errorMsg = $state('');
-
   let isCanceling = $state(false);
+
+  let showCancelConfirmModal = $state(false);
+  let showCancelSuccessModal = $state(false);
+  let cancelErrorMsg = $state('');
 
   onMount(async () => {
     try {
@@ -37,10 +40,6 @@
       isLoading = false;
     }
   });
-
-  let showCancelConfirmModal = $state(false);
-  let showCancelSuccessModal = $state(false);
-  let cancelErrorMsg = $state('');
 
   function requestCancel() {
     showCancelConfirmModal = true;
@@ -80,10 +79,6 @@
     });
   }
 
-  // Wylogowanie to po prostu wyczyszczenie ciastka z przestrzeni na frond-endzie lub uderzenie na mały endpoint.
-  // Ponieważ ciasteczko logowania ma status HttpOnly, musimy wyczyścić je z poziomu serwera.
-  // Z braku endpointu /logout, mozemy nadpisac ciastko pustą wartoscia w JS bez httponly by wylogowalo 
-  // Oczywiście, najbezpieczniej zrobic endpoint.
   function logout() {
     document.cookie = "nexus_sub_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     window.location.href = "/manage-subscription";
@@ -91,134 +86,207 @@
 </script>
 
 {#if isLoading}
-  <div class="flex flex-col items-center justify-center min-h-[400px]">
-    <div class="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4"></div>
-    <div class="font-mono text-xs text-primary tracking-widest uppercase">Pobieranie danych z bazy</div>
+  <div class="flex flex-col items-center justify-center min-h-[500px]">
+    <div class="relative w-24 h-24 mb-8">
+      <div class="absolute inset-0 rounded-full border border-primary/20 bg-primary/5 animate-ping"></div>
+      <div class="absolute inset-2 rounded-full border border-primary/40 bg-primary/10 animate-pulse"></div>
+      <div class="absolute inset-8 rounded-full bg-primary shadow-[0_0_30px_#a855f7]"></div>
+    </div>
+    <div class="inline-block px-4 py-1.5 bg-primary/10 border border-primary/30 rounded-full text-[10px] font-mono text-primary uppercase tracking-widest">
+      Skanowanie Bazy Danych...
+    </div>
   </div>
 {:else if errorMsg}
-  <div class="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-2xl text-center">
-    Odmowa dostępu. {errorMsg}
+  <div class="max-w-xl mx-auto text-center mt-20">
+    <div class="rounded-3xl p-px bg-linear-to-b from-red-500/40 to-transparent">
+      <div class="bg-black/90 rounded-3xl p-12 backdrop-blur-xl">
+        <span class="material-symbols-outlined text-5xl text-red-500 mb-6 block">gpp_bad</span>
+        <h2 class="text-3xl font-bold font-display uppercase tracking-tight text-white mb-4">Odmowa Dostępu</h2>
+        <p class="text-slate-400 text-sm mb-8">{errorMsg}</p>
+        <button onclick={logout} class="border border-white/10 text-slate-400 font-mono text-[10px] uppercase tracking-widest px-8 py-4 rounded-full hover:border-primary/30 hover:text-primary transition-all">
+          Powrót do logowania
+        </button>
+      </div>
+    </div>
   </div>
 {:else if data}
-  <div class="flex justify-between items-end mb-8">
+  <!-- HEADER -->
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 relative z-10">
     <div>
-      <h1 class="text-3xl md:text-4xl font-bold font-grotesk tracking-tight text-white mb-2">Zarządzanie Subskrypcją</h1>
-      <p class="text-slate-400">Zamówienie: <span class="text-primary font-mono">{data.orderNumber}</span> • Poczta: <span class="text-white">{data.email}</span></p>
+      <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-6">
+        <span class="w-1.5 h-1.5 rounded-full {data.status === 'active' ? 'bg-green-500 animate-pulse' : (data.status === 'canceled' ? 'bg-orange-500' : 'bg-red-500')}"></span>
+        <span class="text-[9px] font-mono text-slate-300 uppercase tracking-widest">
+          Status: {data.status === 'active' ? 'W PEŁNI AKTYWNY' : (data.status === 'canceled' ? 'ZLECENIE WYGASZENIA' : 'ZALEGŁOŚĆ')}
+        </span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-display font-bold text-white uppercase tracking-tighter mb-4 shadow-sm">Twój Agent</h1>
+      <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-500 uppercase tracking-widest">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm text-slate-600">badge</span>
+          <span class="text-primary">{data.orderNumber}</span>
+        </div>
+        <div class="w-1 h-1 rounded-full bg-slate-700 hidden sm:block"></div>
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm text-slate-600">mail</span>
+          <span class="text-slate-300">{data.email}</span>
+        </div>
+      </div>
     </div>
-    <button onclick={logout} class="text-xs text-slate-500 hover:text-white transition-colors uppercase tracking-widest font-mono">
-      Wyloguj [X]
+    
+    <button onclick={logout} class="shrink-0 group flex items-center gap-2 bg-transparent text-slate-500 hover:text-white transition-colors custom-focus rounded-full px-4 py-2 border border-transparent hover:bg-white/5">
+      <span class="material-symbols-outlined text-sm">logout</span>
+      <span class="text-[10px] font-mono uppercase tracking-widest">Wyloguj</span>
     </button>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- SEKCA 1: STATUS -->
-    <div class="lg:col-span-2 bg-[#0a0a0e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-      <div class="absolute top-0 right-0 p-3 opacity-5 pointer-events-none">
-        <svg class="w-48 h-48" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+  {#if cancelErrorMsg}
+    <div class="mb-8 p-1 rounded-2xl bg-linear-to-r from-red-500/20 to-transparent">
+      <div class="bg-black p-4 rounded-xl border border-red-500/30 text-red-500 text-sm font-mono flex items-center gap-3">
+        <span class="material-symbols-outlined shrink-0 text-xl">error</span>
+        {cancelErrorMsg}
       </div>
+    </div>
+  {/if}
 
-      <div class="relative z-10 flex items-center gap-4 mb-8">
-        {#if data.status === 'active'}
-          <div class="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse"></div>
-          <span class="text-green-500 font-bold tracking-wide uppercase text-sm">Aktywna</span>
-        {:else if data.status === 'canceled'}
-          <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full bg-slate-500"></div>
-              <span class="text-slate-400 font-bold tracking-wide uppercase text-sm">Anulowana / Opcja Wygasania</span>
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
+    <!-- LEWA KOLUMNA (PARAMETRY & AKCJE) -->
+    <div class="lg:col-span-8 space-y-6">
+      
+      <!-- PARAMETRY SILNIKA -->
+      <div class="rounded-3xl p-px bg-linear-to-b from-white/10 to-transparent">
+        <div class="bg-black/90 p-8 rounded-3xl backdrop-blur-xl relative overflow-hidden">
+          
+          <div class="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+            <span class="material-symbols-outlined" style="font-size: 140px;">manufacturing</span>
+          </div>
+
+          <h2 class="text-[10px] font-mono uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">memory</span>
+            Parametry Silnika
+          </h2>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl p-6 transition-colors">
+              <div class="flex items-center gap-3 mb-4">
+                 <div class="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                   <span class="material-symbols-outlined text-primary text-sm">all_inclusive</span>
+                 </div>
+                 <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Przepustowość</span>
+              </div>
+              <div class="text-3xl font-display font-bold text-white tracking-tighter">{data.dailyLimit}</div>
+              <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mt-1">maili / dobę</div>
             </div>
-            <span class="text-[10px] font-mono text-slate-400 bg-white/5 px-3 py-1 rounded-full border border-white/10 uppercase tracking-widest mt-2 sm:mt-0">Ostateczny koniec: {formatDate(data.cancelAtDate || data.currentPeriodEnd || '')}</span>
+            
+            <div class="bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl p-6 transition-colors">
+              <div class="flex items-center gap-3 mb-4">
+                 <div class="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                   <span class="material-symbols-outlined text-blue-400 text-sm">payments</span>
+                 </div>
+                 <span class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Koszt Operacyjny</span>
+              </div>
+              <div class="text-3xl font-display font-bold text-white tracking-tighter">{data.monthlyAmount}</div>
+              <div class="text-[10px] font-mono text-slate-500 uppercase tracking-widest mt-1">PLN / m-c</div>
+            </div>
           </div>
-        {:else}
-          <div class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]"></div>
-          <span class="text-red-500 font-bold tracking-wide uppercase text-sm">Niezapłacona</span>
-        {/if}
-      </div>
-
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 border-t border-white/5 pt-6">
-        <div>
-          <span class="block text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Limit Skrzynki</span>
-          <span class="text-xl font-bold font-mono text-white">{data.dailyLimit} <span class="text-sm text-slate-500 font-inter font-normal">maili/dzień</span></span>
-        </div>
-        <div>
-          <span class="block text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Kwota Miesięczna</span>
-          <span class="text-xl font-bold font-mono text-white">{data.monthlyAmount} <span class="text-sm text-slate-500 font-inter font-normal">PLN</span></span>
-        </div>
-        <div class="col-span-2 md:col-span-2">
-          <span class="block text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-1">Rozliczenie (Okres)</span>
-          <span class="text-lg font-medium text-white">{formatDate(data.currentPeriodEnd || '')}</span>
         </div>
       </div>
 
-      {#if data.status === 'active'}
-        <div class="bg-primary/10 border border-primary/20 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h3 class="text-white font-medium mb-1">Aktywna Kampania (NEXUS)</h3>
-            <p class="text-sm text-slate-400">Twoja usługa odnowi się automatycznie <strong class="text-white">{data.upcomingInvoice ? formatDate(data.upcomingInvoice.next_payment_attempt) : formatDate(data.currentPeriodEnd || '')}</strong>.</p>
+      <!-- STATUS & AKCJE -->
+      <div class="rounded-3xl p-px {data.status === 'active' ? 'bg-linear-to-b from-primary/30 to-transparent' : 'bg-linear-to-b from-orange-500/30 to-transparent'}">
+        <div class="bg-black/90 p-8 rounded-3xl backdrop-blur-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-8">
+          
+          <div class="relative z-10 flex-1">
+            {#if data.status === 'active'}
+              <h2 class="text-2xl font-display font-bold text-white tracking-tighter uppercase mb-2">Cykl Operacyjny Włączony</h2>
+              <p class="text-sm text-slate-400 leading-relaxed mb-4 lg:mb-0">
+                Infrastruktura działa płynnie. Następne automatyczne odnowienie i fakturowanie nastąpi w dniu: 
+                <strong class="text-white bg-white/10 px-2 py-0.5 rounded ml-1 font-mono text-xs">{data.upcomingInvoice ? formatDate(data.upcomingInvoice.next_payment_attempt) : formatDate(data.currentPeriodEnd || '')}</strong>.
+              </p>
+            {:else if data.status === 'canceled'}
+              <h2 class="text-2xl font-display font-bold text-orange-400 tracking-tighter uppercase mb-2">Protokół Samokasowania Aktywowany</h2>
+              <p class="text-sm text-slate-400 leading-relaxed mb-4 lg:mb-0">
+                Pożegnaliśmy się! Maszyna agenta będzie pracować i wysyłać maile do końca aktualnego okresu rozliczeniowego: 
+                <strong class="text-white bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded ml-1 font-mono text-xs">{formatDate(data.cancelAtDate || data.currentPeriodEnd || '')}</strong>. 
+                Po tej dacie instancja zostanie całkowicie wyparta z sieci.
+              </p>
+            {:else}
+              <h2 class="text-2xl font-display font-bold text-red-500 tracking-tighter uppercase mb-2">Zawieszenie – Brak Płatności</h2>
+              <p class="text-sm text-slate-400 leading-relaxed">
+                Opłać najnowszą fakturę w Stripe, by agent NEXUS powrócił do cyklu operacyjnego.
+              </p>
+            {/if}
           </div>
-          <button 
-            onclick={requestCancel}
-            disabled={isCanceling}
-            class="shrink-0 bg-transparent border border-red-500/50 hover:bg-red-500/10 text-red-400 text-sm font-medium py-2 px-4 rounded transition-all focus:outline-none focus:ring-2 focus:ring-red-500/50 disabled:opacity-50"
-          >
-            {isCanceling ? 'Anulowanie...' : 'Anuluj subskrypcję'}
-          </button>
+
+          {#if data.status === 'active'}
+            <button 
+              onclick={requestCancel}
+              class="shrink-0 flex items-center justify-center gap-2 group border border-red-500/20 hover:border-red-500 hover:bg-red-500/10 text-red-400 hover:text-red-300 font-mono text-[10px] font-bold uppercase tracking-widest px-6 py-4 rounded-xl transition-all"
+            >
+              <span class="material-symbols-outlined text-sm group-hover:rotate-90 transition-transform">power_settings_new</span>
+              Wyłącz Agenta
+            </button>
+          {/if}
+
         </div>
-        
-        {#if cancelErrorMsg}
-          <div class="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm font-mono flex items-center gap-3">
-            <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            {cancelErrorMsg}
-          </div>
-        {/if}
-      {:else}
-        <div class="bg-slate-800/30 border border-slate-700/50 rounded-xl p-5">
-           <h3 class="text-white font-medium mb-1">Subskrypcja Zakończona (Anulowana)</h3>
-           <p class="text-sm text-slate-400">Twoja kampania będzie działać do {formatDate(data.cancelAtDate || data.currentPeriodEnd || '')}, a następnie maszyna zostanie ostatecznie wyłączona i podlegnie protokołowi samokasowania.</p>
-        </div>
-      {/if}
+      </div>
     </div>
 
-    <!-- SEKCA 2: HISTORIA FAKTUR -->
-    <div class="bg-[#0a0a0e]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col">
-      <h2 class="text-lg font-bold text-white mb-6 border-b border-white/5 pb-4">Historia Płatności i Faktury</h2>
-      
-      {#if !data.payments || data.payments.length === 0}
-        <div class="flex-1 flex items-center justify-center text-slate-500 text-sm italic">
-          Brak wygenerowanych faktur
+    <!-- PRAWA KOLUMNA (FAKTURY) -->
+    <div class="lg:col-span-4 rounded-3xl p-px bg-linear-to-b from-white/10 to-transparent flex flex-col h-full max-h-[800px]">
+      <div class="bg-black/90 rounded-3xl backdrop-blur-xl flex flex-col overflow-hidden h-full relative">
+        <div class="p-6 md:p-8 border-b border-white/5 relative z-10 shrink-0">
+          <h2 class="text-[10px] font-mono uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">receipt_long</span>
+            Archiwum Rozliczeń
+          </h2>
+          <h3 class="text-xl font-display font-bold text-white uppercase tracking-tighter shadow-sm">Historia Faktur</h3>
         </div>
-      {:else}
-        <div class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-          {#each data.payments as payment (payment.id || payment.stripeInvoiceId)}
-            <div class="bg-white/5 border border-white/5 p-4 rounded-xl hover:border-primary/30 transition-colors group">
-              <div class="flex justify-between items-start mb-2">
-                <span class="text-white font-medium">{payment.amount} <span class="text-xs text-slate-400">PLN</span></span>
-                <span class="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded {payment.status === 'paid' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}">
-                  {payment.status === 'paid' ? 'Opłacono' : 'Oczekuje'}
-                </span>
-              </div>
-              <div class="text-xs text-slate-500 mb-3 font-mono">
-                {formatDate(payment.paidAt)}
-              </div>
-              
-              {#if payment.fakturaXlInvoiceId}
-                <a 
-                  href={`/api/invoices/download?id=${payment.fakturaXlInvoiceId}`}
-                  target="_blank"
-                  class="flex items-center justify-center w-full gap-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium py-2 rounded transition-colors"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                  Pobierz PDF Faktura XL
-                </a>
-              {:else}
-                 <div class="text-[10px] text-slate-500 text-center uppercase tracking-widest bg-slate-800/50 py-2 rounded">
-                   Faktura w toku...
-                 </div>
-              {/if}
+        
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar space-y-3 relative z-10 min-h-[300px]">
+          {#if !data.payments || data.payments.length === 0}
+            <div class="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50">
+              <span class="material-symbols-outlined text-4xl text-slate-600">inventory_2</span>
+              <p class="text-xs font-mono text-slate-500 uppercase tracking-widest">Pusty Rejestr</p>
             </div>
-          {/each}
+          {:else}
+            {#each data.payments as payment (payment.id || payment.stripeInvoiceId)}
+              <div class="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-2xl p-4 transition-all duration-300 relative overflow-hidden">
+                <!-- Glowing border effect on hover -->
+                <div class="absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity {payment.status === 'paid' ? 'bg-green-500' : 'bg-orange-500'}"></div>
+                
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <span class="block text-white font-display font-bold text-xl tracking-tight mb-1">{payment.amount} <span class="text-xs uppercase text-slate-500">PLN</span></span>
+                    <span class="text-xs font-mono text-slate-500 tracking-wider"><span class="material-symbols-outlined text-[10px] align-middle mr-1">event</span>{formatDate(payment.paidAt)}</span>
+                  </div>
+                  <div class="shrink-0 px-2 py-1 rounded bg-black/50 border border-white/5 flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full {payment.status === 'paid' ? 'bg-green-500' : 'bg-orange-500'}"></span>
+                    <span class="text-[8px] font-mono uppercase tracking-widest {payment.status === 'paid' ? 'text-green-400' : 'text-orange-400'}">
+                      {payment.status === 'paid' ? 'ZAPŁACONO' : 'OCZEKUJE'}
+                    </span>
+                  </div>
+                </div>
+                
+                {#if payment.fakturaXlInvoiceId}
+                  <a 
+                    href={`/api/invoices/download?id=${payment.fakturaXlInvoiceId}`}
+                    target="_blank"
+                    class="flex items-center justify-center w-full gap-2 bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white font-mono text-[9px] uppercase tracking-widest font-bold py-3 px-4 rounded-xl transition-all"
+                  >
+                    <span class="material-symbols-outlined text-[12px]">download</span>
+                    Pobierz PDF
+                  </a>
+                {:else}
+                   <div class="flex items-center justify-center gap-2 w-full bg-slate-800/30 text-slate-500 font-mono text-[9px] uppercase tracking-widest font-bold py-3 px-4 rounded-xl border border-transparent">
+                     <span class="material-symbols-outlined text-[12px] animate-spin">sync</span>
+                     Wykulanie Faktury...
+                   </div>
+                {/if}
+              </div>
+            {/each}
+          {/if}
         </div>
-      {/if}
+      </div>
     </div>
   </div>
 {/if}
@@ -227,39 +295,48 @@
 {#if showCancelConfirmModal}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onclick={() => showCancelConfirmModal = false}>
-    <div class="bg-[#0a0a0e] border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl max-w-lg w-full relative z-10 overflow-hidden" onclick={e => e.stopPropagation()}>
-      <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-        <svg class="w-32 h-32 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      </div>
-      
-      <div class="flex items-center gap-4 mb-6 relative z-10">
-        <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
-          <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onclick={() => showCancelConfirmModal = false}>
+    <div class="rounded-3xl p-px bg-linear-to-b from-red-500/40 to-red-900/10 max-w-lg w-full relative z-10 shadow-[0_0_80px_rgba(239,68,68,0.15)] animate-in fade-in zoom-in duration-300">
+      <div class="bg-black/95 rounded-3xl p-8 md:p-12 overflow-hidden" onclick={e => e.stopPropagation()}>
+        <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+          <span class="material-symbols-outlined" style="font-size: 150px;">warning</span>
         </div>
-        <h2 class="text-2xl font-bold font-display uppercase tracking-tight text-white">Przetnij Połączenie</h2>
-      </div>
-      
-      <div class="relative z-10 space-y-4 mb-10 text-slate-400 text-sm">
-        <p>Czy na pewno chcesz anulować subskrypcję NEXUS?</p>
-        <div class="bg-white/5 border border-white/10 p-4 rounded-xl">
-          Usługa pozostanie aktywna do <strong>końca opłaconego okresu rozliczeniowego</strong>. Następnie maszyna zostanie trwale zgaszona, a baza mailowa wyłączona.
+        
+        <div class="flex items-center gap-4 mb-6 relative z-10">
+          <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-red-500 text-xl">link_off</span>
+          </div>
+          <h2 class="text-2xl font-bold font-display uppercase tracking-tighter text-white drop-shadow-sm">Przetnij Połączenie</h2>
         </div>
-      </div>
-      
-      <div class="flex flex-col md:flex-row items-center gap-3 relative z-10">
-        <button 
-          onclick={() => showCancelConfirmModal = false}
-          class="w-full md:w-auto px-6 py-3 rounded-xl border border-white/10 text-white font-mono text-xs uppercase tracking-widest hover:bg-white/5 transition-colors"
-        >
-          Wróć
-        </button>
-        <button 
-          onclick={confirmCancel}
-          class="w-full md:flex-1 px-6 py-3 rounded-xl bg-red-500 hover:bg-red-400 text-white font-mono font-bold text-xs uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-        >
-          Tak, anuluj subskrypcję
-        </button>
+        
+        <div class="relative z-10 space-y-4 mb-10 text-slate-300 text-sm leading-relaxed">
+          <p>Potwierdź deaktywację sztucznej inteligencji sprzedażowej. NEXUS przestanie prospectować dla Twojej firmy zaraz po wygaśnięciu Twojego cyklu rozliczeniowego.</p>
+          <div class="bg-red-500/5 border border-red-500/10 p-4 rounded-xl text-red-300 text-xs font-mono uppercase tracking-widest">
+            Twoja usługa pozostanie aktywna do <br/><strong class="text-white text-sm mt-1 block">końca obecnego cyklu</strong>.
+          </div>
+        </div>
+        
+        <div class="flex flex-col md:flex-row items-center gap-3 relative z-10">
+          <button 
+            onclick={() => showCancelConfirmModal = false}
+            class="w-full md:w-auto px-6 py-4 rounded-xl border border-white/10 text-slate-300 font-mono text-[10px] uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+            disabled={isCanceling}
+          >
+            Anuluj akcję
+          </button>
+          <button 
+            onclick={confirmCancel}
+            disabled={isCanceling}
+            class="w-full md:flex-1 px-6 py-4 rounded-xl bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 border border-red-400/50 text-white font-mono font-bold text-[10px] uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {#if isCanceling}
+              <span class="material-symbols-outlined text-xs animate-spin">sync</span>
+              Przetwarzanie...
+            {:else}
+              Tak, Wyłącz Agenta
+            {/if}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -269,27 +346,29 @@
 {#if showCancelSuccessModal}
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onclick={closeSuccessModal}>
-    <div class="bg-[#0a0a0e] border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl max-w-lg w-full relative z-10 overflow-hidden" onclick={e => e.stopPropagation()}>
-      <div class="absolute inset-0 bg-linear-to-b from-slate-900/50 to-transparent pointer-events-none"></div>
-      
-      <div class="relative z-10 text-center">
-        <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 mx-auto flex items-center justify-center mb-6">
-          <svg class="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onclick={closeSuccessModal}>
+    <div class="rounded-3xl p-px bg-linear-to-b from-orange-500/40 to-transparent max-w-lg w-full relative z-10 shadow-[0_0_80px_rgba(249,115,22,0.15)] animate-in fade-in zoom-in duration-300">
+      <div class="bg-black/95 rounded-3xl p-8 md:p-12 overflow-hidden text-center" onclick={e => e.stopPropagation()}>
+        <div class="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-orange-500/10 to-transparent pointer-events-none"></div>
+        
+        <div class="relative z-10">
+          <div class="w-20 h-20 rounded-full bg-orange-500/10 border border-orange-500/30 mx-auto flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(249,115,22,0.2)]">
+            <span class="material-symbols-outlined text-3xl text-orange-400">check</span>
+          </div>
+          
+          <h2 class="text-2xl font-bold font-display uppercase tracking-tighter text-white mb-4 drop-shadow-sm">Proces Zakończony</h2>
+          <p class="text-slate-400 text-sm mb-8 leading-relaxed">
+            Zlecenie anulowania zostało zapisane, a powiadomienie e-mail wyleciało na Twoją skrzynkę.<br><br>
+            Było wspaniale. Maszyna zostanie definitywnie odcięta w zaplanowanym terminie. W razie potrzeby – wiesz, gdzie nas znaleźć.
+          </p>
+          
+          <button 
+            onclick={closeSuccessModal}
+            class="w-full px-6 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary text-slate-300 font-mono font-bold text-[10px] uppercase tracking-widest transition-all cursor-pointer"
+          >
+            Zamknij
+          </button>
         </div>
-        
-        <h2 class="text-2xl font-bold font-display uppercase tracking-tight text-white mb-4">Proces Zakończony</h2>
-        <p class="text-slate-400 text-sm mb-6 leading-relaxed">
-          Zlecenie anulowania zostało zapisane. Wysłaliśmy również potwierdzenie na Twój adres e-mail.<br><br>
-          Dziękujemy za współpracę z systemem NEXUS.
-        </p>
-        
-        <button 
-          onclick={closeSuccessModal}
-          class="w-full px-6 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 text-white font-mono text-xs uppercase tracking-widest transition-all"
-        >
-          Zamknij i Odśwież Status
-        </button>
       </div>
     </div>
   </div>
@@ -297,13 +376,17 @@
 
 <style>
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    border-radius: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(168, 85, 247, 0.4);
   }
 </style>
