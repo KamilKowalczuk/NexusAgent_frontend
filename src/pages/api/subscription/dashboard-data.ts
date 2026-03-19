@@ -50,12 +50,16 @@ export const GET: APIRoute = async ({ request, cookies }) => {
             }
             
             if (sub.status === 'active' && !sub.cancel_at_period_end) {
-                 const inv = await (stripe.invoices as any).retrieveUpcoming({ subscription: sub.id });
-                 if (inv && inv.next_payment_attempt) {
-                     upcomingInvoice = {
-                         amount_due: inv.amount_due / 100, // Stripe expects cents
-                         next_payment_attempt: new Date(inv.next_payment_attempt * 1000).toISOString()
-                     };
+                 try {
+                     const inv = await (stripe.invoices as any).retrieveUpcoming({ subscription: sub.id });
+                     if (inv && inv.next_payment_attempt) {
+                         upcomingInvoice = {
+                             amount_due: inv.amount_due / 100, // Stripe expects cents
+                             next_payment_attempt: new Date(inv.next_payment_attempt * 1000).toISOString()
+                         };
+                     }
+                 } catch (invErr) {
+                     console.log('[dashboard-data] Brak wygenerowanej kolejnej faktury (często w Trybie Testowym):', invErr);
                  }
             }
         } catch (e) {
