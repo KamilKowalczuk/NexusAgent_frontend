@@ -79,8 +79,8 @@
     });
   }
 
-  function logout() {
-    document.cookie = "nexus_sub_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  async function logout() {
+    await fetch('/api/subscription/logout', { method: 'POST' });
     window.location.href = "/manage-subscription";
   }
 </script>
@@ -133,9 +133,8 @@
       </div>
     </div>
     
-    <button onclick={logout} class="shrink-0 group flex items-center gap-2 bg-transparent text-slate-500 hover:text-white transition-colors custom-focus rounded-full px-4 py-2 border border-transparent hover:bg-white/5">
-      <span class="material-symbols-outlined text-sm">logout</span>
-      <span class="text-[10px] font-mono uppercase tracking-widest">Wyloguj</span>
+    <button onclick={logout} class="shrink-0 inline-flex items-center gap-2 border border-white/10 text-slate-400 font-mono text-[10px] uppercase tracking-widest px-6 py-3 rounded-full hover:border-primary/30 hover:text-primary transition-all">
+      <span class="material-symbols-outlined text-[14px]">logout</span> Wyloguj
     </button>
   </div>
 
@@ -219,12 +218,13 @@
 
           {#if data.status === 'active'}
             <button 
-              onclick={requestCancel}
-              class="shrink-0 flex items-center justify-center gap-2 group border border-red-500/20 hover:border-red-500 hover:bg-red-500/10 text-red-400 hover:text-red-300 font-mono text-[10px] font-bold uppercase tracking-widest px-6 py-4 rounded-xl transition-all"
-            >
-              <span class="material-symbols-outlined text-sm group-hover:rotate-90 transition-transform">power_settings_new</span>
-              Wyłącz Agenta
-            </button>
+            onclick={requestCancel}
+            disabled={isCanceling}
+            class="shrink-0 flex items-center justify-center gap-2 px-8 py-3 rounded-2xl border border-red-500/20 text-red-500 font-display font-bold text-sm tracking-wider uppercase hover:border-red-500/50 hover:bg-red-500/10 transition-all focus:outline-none focus:border-red-500 disabled:opacity-50"
+          >
+            <span class="material-symbols-outlined text-lg">no_encryption</span>
+            Wyłącz Agenta
+          </button>
           {/if}
 
         </div>
@@ -271,9 +271,11 @@
                   <a 
                     href={`/api/invoices/download?id=${payment.fakturaXlInvoiceId}`}
                     target="_blank"
-                    class="flex items-center justify-center w-full gap-2 bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary text-primary hover:text-white font-mono text-[9px] uppercase tracking-widest font-bold py-3 px-4 rounded-xl transition-all"
+                    class="w-full py-3 rounded-2xl font-display font-bold uppercase text-[10px] tracking-wider text-white transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden group"
+                    style="background: linear-gradient(135deg, hsl(270,60%,45%), hsl(280,70%,55%)); box-shadow: 0 0 20px hsl(270,60%,30%);"
                   >
-                    <span class="material-symbols-outlined text-[12px]">download</span>
+                    <span class="absolute inset-0 w-full h-full bg-linear-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></span>
+                    <span class="material-symbols-outlined text-[14px]">download</span>
                     Pobierz PDF
                   </a>
                 {:else}
@@ -317,9 +319,9 @@
         </div>
         
         <div class="flex flex-col md:flex-row items-center gap-3 relative z-10">
-          <button 
+        <button 
             onclick={() => showCancelConfirmModal = false}
-            class="w-full md:w-auto px-6 py-4 rounded-xl border border-white/10 text-slate-300 font-mono text-[10px] uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+            class="w-full md:w-auto px-8 py-4 rounded-2xl border border-white/10 text-slate-400 font-mono text-[10px] uppercase tracking-widest hover:border-primary/30 hover:text-primary transition-all disabled:opacity-50"
             disabled={isCanceling}
           >
             Anuluj akcję
@@ -327,10 +329,12 @@
           <button 
             onclick={confirmCancel}
             disabled={isCanceling}
-            class="w-full md:flex-1 px-6 py-4 rounded-xl bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 border border-red-400/50 text-white font-mono font-bold text-[10px] uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(239,68,68,0.4)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full md:flex-1 py-4 rounded-2xl font-display font-bold uppercase tracking-wider text-sm text-white transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden relative group"
+            style="background: linear-gradient(135deg, hsl(0,60%,45%), hsl(0,70%,55%)); box-shadow: 0 0 30px hsl(0,60%,30%);"
           >
+            <span class="absolute inset-0 w-full h-full bg-linear-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></span>
             {#if isCanceling}
-              <span class="material-symbols-outlined text-xs animate-spin">sync</span>
+              <span class="material-symbols-outlined text-sm animate-spin">sync</span>
               Przetwarzanie...
             {:else}
               Tak, Wyłącz Agenta
@@ -364,9 +368,11 @@
           
           <button 
             onclick={closeSuccessModal}
-            class="w-full px-6 py-4 rounded-xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary text-slate-300 font-mono font-bold text-[10px] uppercase tracking-widest transition-all cursor-pointer"
+            class="w-full py-4 rounded-2xl font-display font-bold uppercase tracking-wider text-sm text-white transition-all duration-300 flex items-center justify-center gap-2 overflow-hidden relative group mt-2"
+            style="background: linear-gradient(135deg, hsl(270,60%,45%), hsl(280,70%,55%)); box-shadow: 0 0 30px hsl(270,60%,30%);"
           >
-            Zamknij
+            <span class="absolute inset-0 w-full h-full bg-linear-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></span>
+            Zamknij i Odśwież Status
           </button>
         </div>
       </div>
