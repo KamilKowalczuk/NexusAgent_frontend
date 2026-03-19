@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import Stripe from 'stripe';
+import { Resend } from 'resend';
 import { verifySession } from '../../../utils/session';
 
 export const prerender = false;
@@ -70,6 +71,34 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (!patchRes.ok) {
       console.error('[cancel-subscription] Błąd synchronizacji anulowania bazy Payload:', patchRes.statusText);
       // Nie rzucamy bledu frontendowi, bo w Stripe juz wylaczono, a Webhook ostatecznie to dogra
+    }
+
+    // 4. Send cancellation email
+    const cancelDateStr = new Date(updatedSubscription.cancel_at! * 1000).toLocaleDateString('pl-PL', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    const resendKey = import.meta.env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+    if (resendKey) {
+      const resend = new Resend(resendKey);
+      await resend.emails.send({
+        from: 'NEXUS Agent <onboarding@nexusagent.pl>',
+        to: order.customerEmail,
+        subject: `Potwierdzenie anulowania usługi NEXUS`,
+        html: `
+          <div style="background:#050508;padding:40px;font-family:monospace;color:#e2e8f0;border-radius:16px;">
+            <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#ef4444;margin-bottom:16px;">NEXUS AGENT – ZMIANA STATUSU</div>
+            <div style="font-size:18px;font-weight:bold;color:#f8fafc;margin-bottom:16px;">Twoja subskrypcja została anulowana</div>
+            <div style="font-size:14px;color:#94a3b8;line-height:1.6;margin-bottom:24px;">
+              Potwierdzamy zlecenie anulowania subskrypcji dla zamówienia <strong style="color:#fff;">${order.orderNumber}</strong>.<br><br>
+              Usługa pozostaje w pełni aktywna do końca opłaconego okresu rozliczeniowego, czyli do:<br>
+              <strong style="color:#0ceaed;font-size:16px;">${cancelDateStr}</strong>.<br><br>
+              Po tym terminie infrastruktura agenta zostanie zgaszona (dane zostaną samoczynnie usunięte). Dziękujemy za współpracę!
+            </div>
+            <div style="font-size:12px;color:#64748b;">Jeżeli to była pomyłka, nadal możesz odnowić subskrypcję w Panelu przed wygaśnięciem terminu.</div>
+          </div>
+        `,
+      }).catch(err => console.error('[cancel-subscription] Błąd wysyłki e-mail:', err));
     }
 
     return new Response(JSON.stringify({
